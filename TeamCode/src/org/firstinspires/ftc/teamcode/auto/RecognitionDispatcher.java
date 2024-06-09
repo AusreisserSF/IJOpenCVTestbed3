@@ -19,7 +19,6 @@ import org.firstinspires.ftc.teamcode.auto.vision.*;
 import org.firstinspires.ftc.teamcode.auto.xml.GoldCubeParametersXML;
 import org.firstinspires.ftc.teamcode.auto.xml.RobotActionXML;
 import org.firstinspires.ftc.teamcode.common.RobotConstants;
-import org.firstinspires.ftc.teamcode.common.RobotConstantsCenterStage;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
@@ -87,7 +86,7 @@ public class RecognitionDispatcher extends Application {
         String fullTestCaseDir = testCaseBaseDir + testCase + "/";
 
         // Create a test log that looks like this example from the c++ project OpenCVTestbed3:
-        // TestLog_2024_06_06_08-17-43_759_run.txt
+        // TestLog_2024-06-06_0817:43.759_run.txt
         // However, since all Java projects use the native Java logger, the best equivalent
         // would be:
 
@@ -95,7 +94,7 @@ public class RecognitionDispatcher extends Application {
         // remake and propagate via jar. Change AS FtcCenterStageCore; bring FTCDevCommonAndroid
         // up to date in case you need it for Roadrunner testing.
 
-        // TestLog_2024-06_06-08_17-43_759.txt.0
+        // TestLog_2024-06-06_0817:43.759.txt.0
         RobotLogCommon.initialize(RobotLogCommon.LogIdentifier.TEST_LOG, fullTestCaseDir);
 
         // Check the contents of a frequently used optional command line argument.
@@ -152,8 +151,8 @@ public class RecognitionDispatcher extends Application {
                 // Perform image recognition.
                 // Get the recognition path from the XML file.
                 String recognitionPathString = actionXPath.getRequiredText("gold_cube_recognition/recognition_path");
-                RobotConstantsCenterStage.GoldCubeRecognitionPath goldCubeRecognitionPath =
-                        RobotConstantsCenterStage.GoldCubeRecognitionPath.valueOf(recognitionPathString.toUpperCase());
+                GoldCubeRecognition.GoldCubeRecognitionPath goldCubeRecognitionPath =
+                        GoldCubeRecognition.GoldCubeRecognitionPath.valueOf(recognitionPathString.toUpperCase());
 
                 RobotLogCommon.d(TAG, "Recognition path " + goldCubeRecognitionPath);
 
