@@ -75,15 +75,13 @@ public class RecognitionDispatcher extends Application {
         Map<String, String> namedParameters = parameters.getNamed();
 
         // Get the name of the test case directory as the first argument on the command line.
-        //**TODO Put trailing / in getWorkingDirectory(), not here.
-        String testCaseBaseDir = WorkingDirectory.getWorkingDirectory() + "/";
         String testCase = parameters.getUnnamed().getFirst();
         if (testCase == null) {
             System.out.println(TAG + " Missing test case name");
             return;
         }
 
-        String fullTestCaseDir = testCaseBaseDir + testCase + "/";
+        String fullTestCaseDir = WorkingDirectory.getWorkingDirectory() + "/" + testCase + "/";
 
         // Create a test log that looks like this example from the c++ project OpenCVTestbed3:
         // TestLog_2024-06-06_0817:43.759_run.txt
