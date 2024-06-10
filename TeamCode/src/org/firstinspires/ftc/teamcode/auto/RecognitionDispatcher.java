@@ -84,14 +84,9 @@ public class RecognitionDispatcher extends Application {
         String fullTestCaseDir = WorkingDirectory.getWorkingDirectory() + "/" + testCase + "/";
 
         // Create a test log that looks like this example from the c++ project OpenCVTestbed3:
-        // TestLog_2024-06-06_0817:43.759_run.txt
-        // However, since all Java projects use the native Java logger, the best equivalent
-        // would be:
-
-        //**TODO Change in timestamp across all IJ & AS projects; start in FTCDevCommonIntelliJ,
-        // remake and propagate via jar. Change AS FtcCenterStageCore; bring FTCDevCommonAndroid
-        // up to date in case you need it for Roadrunner testing.
-
+        // TestLog_2024-06-06_0817-43.759_run.txt
+        // However, since all Java projects use the native Java logger with file versioning,
+        // the file name of the log will come out as equivalent:
         // TestLog_2024-06-06_0817:43.759.txt.0
         RobotLogCommon.initialize(RobotLogCommon.LogIdentifier.TEST_LOG, fullTestCaseDir);
 
