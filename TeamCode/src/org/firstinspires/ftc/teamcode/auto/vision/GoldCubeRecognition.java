@@ -13,8 +13,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Optional;
 
-//## There is a fair amount of code duplication here but in the real
-// application only a depth camera or a webcam will be used.
 public class GoldCubeRecognition {
 
     private static final String TAG = GoldCubeRecognition.class.getSimpleName();

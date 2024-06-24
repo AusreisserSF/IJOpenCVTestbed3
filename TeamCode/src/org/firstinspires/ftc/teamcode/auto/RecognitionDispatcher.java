@@ -159,6 +159,43 @@ public class RecognitionDispatcher extends Application {
                         "Test gold cube recognition");
             }
 
+            // Standard OpenCV Watershed example from --
+            // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html
+            case "WATERSHED_STD" -> {
+                //**TODO Should not need this for the standard example Read the parameters from the xml file.
+                // WatershedParametersXML watershedParametersXML = new WatershedParametersXML(fullTestCaseDir);
+                // WatershedParameters watershedParameters = watershedParametersXML.getWatershedParameters();
+
+                // Get the <image_parameters> for the playing cards from the RobotAction XML file.
+                VisionParameters.ImageParameters watershedImageParameters =
+                        robotActionXML.getImageParametersFromXPath(actionElement, "image_parameters");
+
+                // Make sure that this tester is reading the image from a file.
+                if (!(watershedImageParameters.image_source.endsWith(".png") ||
+                        watershedImageParameters.image_source.endsWith(".jpg")))
+                    throw new AutonomousRobotException(TAG, "Invalid image file name");
+
+                imageFilename = watershedImageParameters.image_source;
+                ImageProvider fileImage = new FileImage(fullTestCaseDir + watershedImageParameters.image_source);
+
+                // Perform image recognition.
+                // Get the recognition path from the XML file.
+                String recognitionPathString = actionXPath.getRequiredText("watershed_recognition/recognition_path");
+                WatershedRecognitionStd.WatershedRecognitionPath watershedRecognitionPath =
+                        WatershedRecognitionStd.WatershedRecognitionPath.valueOf(recognitionPathString.toUpperCase());
+
+                RobotLogCommon.d(TAG, "Recognition path " + watershedRecognitionPath);
+
+                // Perform image recognition.
+                WatershedRecognitionStd watershedRecognitionStd = new WatershedRecognitionStd(fullTestCaseDir);
+                RobotConstants.RecognitionResults watershedStdReturn =
+                        watershedRecognitionStd.performWatershed(fileImage, watershedImageParameters, watershedRecognitionPath);
+
+                displayResults(fullTestCaseDir + imageFilename,
+                        buildResultsOnlyDisplayText(imageFilename, watershedStdReturn),
+                        "Test standard OpenCV Watershed");
+            }
+
             default -> throw new AutonomousRobotException(TAG, "Unrecognized image recognition action");
         }
 
