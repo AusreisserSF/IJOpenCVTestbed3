@@ -1,0 +1,27 @@
+<RobotAction>
+    <OpMode id="TEST">
+        <parameters>
+            <log_level>v</log_level>
+        </parameters>
+        <actions>
+            <WATERSHED_STD>
+                <image_parameters>
+                    <image_source>cards.png</image_source>
+                    <resolution>
+                        <width>640</width>
+                        <height>480</height>
+                    </resolution>
+                    <image_roi>
+                        <x>0</x>
+                        <y>0</y>
+                        <width>640</width>
+                        <height>480</height>
+                    </image_roi>
+                </image_parameters>
+                <watershed_recognition>
+                    <recognition_path>distance</recognition_path>
+                </watershed_recognition>
+            </WATERSHED_STD>
+        </actions>
+    </OpMode>
+</RobotAction>

@@ -189,7 +189,7 @@ public class RecognitionDispatcher extends Application {
                 // Perform image recognition.
                 WatershedRecognitionStd watershedRecognitionStd = new WatershedRecognitionStd(fullTestCaseDir);
                 RobotConstants.RecognitionResults watershedStdReturn =
-                        watershedRecognitionStd.performWatershed(fileImage, watershedImageParameters, watershedRecognitionPath);
+                        watershedRecognitionStd.performWatershedStd(fileImage, watershedImageParameters, watershedRecognitionPath);
 
                 displayResults(fullTestCaseDir + imageFilename,
                         buildResultsOnlyDisplayText(imageFilename, watershedStdReturn),
