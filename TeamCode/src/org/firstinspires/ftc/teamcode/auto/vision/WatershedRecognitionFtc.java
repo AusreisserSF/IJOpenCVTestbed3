@@ -79,24 +79,6 @@ public class WatershedRecognitionFtc {
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
 
-        //##PY Apply a sharpening kernel to the color image.
-        Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
-
-        // Split the BGR image into its components; see the comments above the method.
-        Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
-
-        // Threshold the image: set pixels over the threshold value to white.
-        Mat thresholded = new Mat(); // output binary image
-        Imgproc.threshold(split, thresholded,
-                Math.abs(allianceGrayParameters.threshold_low),    // threshold value
-                255,   // white
-                Imgproc.THRESH_BINARY); // thresholding type
-        RobotLogCommon.v(TAG, "Threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
-
-        String thrFilename = pOutputFilenamePreamble + "_THR.png";
-        Imgcodecs.imwrite(thrFilename, thresholded);
-        RobotLogCommon.d(TAG, "Writing " + thrFilename);
-
         //##PY The Laplacian filtering and the sharpening do make a difference.
         /*
         //! [sharp]
@@ -135,18 +117,32 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_SHARP.png", imgResult);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_SHARP.png");
         //! [sharp]
-        */
 
         //! [bin]
         // Create binary image from source image
-        //**TODO WatershedRecognitionStd uses Mat bw = new Mat();
-        //Imgproc.cvtColor(imgResult, bw, Imgproc.COLOR_BGR2GRAY);
-        //Imgproc.threshold(bw, bw, 40, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
-
-        // Output the thresholded image.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_THR.png", thresholded);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_THR.png");
+        Mat bw = new Mat();
+        Imgproc.cvtColor(imgResult, bw, Imgproc.COLOR_BGR2GRAY);
+        Imgproc.threshold(bw, bw, 40, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
         //! [bin]
+        */
+
+        //##PY Apply a sharpening kernel to the color image.
+        Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
+
+        // Split the BGR image into its components; see the comments above the method.
+        Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
+
+        // Threshold the image: set pixels over the threshold value to white.
+        Mat thresholded = new Mat(); // output binary image
+        Imgproc.threshold(split, thresholded,
+                Math.abs(allianceGrayParameters.threshold_low),    // threshold value
+                255,   // white
+                Imgproc.THRESH_BINARY); // thresholding type
+        RobotLogCommon.v(TAG, "Threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
+
+        String thrFilename = pOutputFilenamePreamble + "_THR.png";
+        Imgcodecs.imwrite(thrFilename, thresholded);
+        RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
         //! [dist]
         // Perform the distance transform algorithm
