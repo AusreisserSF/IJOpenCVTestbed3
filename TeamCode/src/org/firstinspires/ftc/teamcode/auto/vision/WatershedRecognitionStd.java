@@ -192,6 +192,7 @@ public class WatershedRecognitionStd {
         }
 
         // Draw the background marker
+        //**TODO What is the point of both calls to Imgproc.circle
         Mat markersScaled = new Mat();
         markers.convertTo(markersScaled, CvType.CV_32F);
         Core.normalize(markersScaled, markersScaled, 0.0, 255.0, Core.NORM_MINMAX);

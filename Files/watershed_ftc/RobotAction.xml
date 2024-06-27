@@ -4,24 +4,24 @@
             <log_level>v</log_level>
         </parameters>
         <actions>
-            <WATERSHED_STD>
+            <WATERSHED_FTC>
                 <image_parameters>
-                    <image_source>front_webcam_03090758_45758_IMG_05280638_37574_ROI.png</image_source>
-                    <resolution>
+                    <image_source>front_webcam_03090758_45758_IMG.png</image_source>
+                     <resolution>
                         <width>640</width>
                         <height>480</height>
                     </resolution>
                     <image_roi>
-                        <x>0</x>
-                        <y>0</y>
-                        <width>640</width>
-                        <height>480</height>
+                        <x>48</x>
+                        <y>148</y>
+                        <width>486</width>
+                        <height>250</height>
                     </image_roi>
                 </image_parameters>
                 <watershed_recognition>
                     <recognition_path>distance</recognition_path>
                 </watershed_recognition>
-            </WATERSHED_STD>
+            </WATERSHED_FTC>
         </actions>
     </OpMode>
 </RobotAction>

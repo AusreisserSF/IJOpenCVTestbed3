@@ -22,9 +22,11 @@ public class WatershedRecognitionFtc {
         DISTANCE
     }
 
+    private final RobotConstants.Alliance alliance;
     private final String testCaseDirectory;
 
-    public WatershedRecognitionFtc(String pTestCaseDirectory) {
+    public WatershedRecognitionFtc(RobotConstants.Alliance pAlliance, String pTestCaseDirectory) {
+        alliance = pAlliance;
         testCaseDirectory = pTestCaseDirectory;
     }
 
@@ -35,7 +37,7 @@ public class WatershedRecognitionFtc {
     public RobotConstants.RecognitionResults performWatershedFtc(ImageProvider pImageProvider,
                                                                  VisionParameters.ImageParameters pImageParameters,
                                                                  WatershedRecognitionPath pWatershedRecognitionPath,
-                                                                 WatershedParameters pWatershedParameters) throws InterruptedException {
+                                                                 WatershedParametersFtc pWatershedParametersFtc) throws InterruptedException {
         RobotLogCommon.d(TAG, "In WatershedRecognitionFtc.performWatershedFtc");
 
         // LocalDateTime requires Android minSdkVersion 26  public Pair<Mat, LocalDateTime> getImage() throws InterruptedException;
@@ -53,25 +55,48 @@ public class WatershedRecognitionFtc {
         switch (pWatershedRecognitionPath) {
             // Use a switch by convention in case we have more paths in the future.
             case DISTANCE -> {
-                //    return watershedFromDistance(imageROI, outputFilenamePreamble, pWatershedParameters.watershedDistanceParameters);
+                return watershedFromDistance(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
             }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
         }
     }
 
-    private RobotConstants.RecognitionResults watershedFromDistance(Mat pImageROI, String pOutputFilenamePreamble, WatershedParameters.WatershedDistanceParameters pWwatershedDistanceParameters) {
+    private RobotConstants.RecognitionResults watershedFromDistance(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
 
-        //**TODO STOPPED HERE. See WIP\SplitChannelsForWatershed.java
+        // Use the grayscale and pixel count criteria parameters for the current alliance.
+        VisionParameters.GrayParameters allianceGrayParameters;
+        int allianceMinWhitePixelCount;
+        switch (alliance) {
+            case RED -> {
+                allianceGrayParameters = pWwatershedDistanceParameters.redGrayParameters;
+                allianceMinWhitePixelCount = pWwatershedDistanceParameters.redMinWhitePixelCount;
+            }
+            case BLUE -> {
+                allianceGrayParameters = pWwatershedDistanceParameters.blueGrayParameters;
+                allianceMinWhitePixelCount = pWwatershedDistanceParameters.blueMinWhitePixelCount;
+            }
+            default ->
+                    throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
+        }
 
-        // Output the image with a black background.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLK.png", src);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLK.png");
+        // Split the BGR image into its components; see the comments above the method.
+        Mat split = splitAndInvertChannels(pImageROI, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
-        //##PY Try a sharpening kernel I got from stackoverflow.
-        // The results are nearly identical - actually both methods
-        // miss-classify the empty space just under the card in the
-        // upper-right.
-        Mat imgResult = sharpen(pImageROI, pOutputFilenamePreamble);
+        //##PY Apply a sharpening kernel from stackoverflow.
+        // Unlike WatershedRecognitionStd here we will sharpen the grayscale image.
+        Mat sharp = sharpen(split, pOutputFilenamePreamble);
+
+        // Threshold the image: set pixels over the threshold value to white.
+        Mat thresholded = new Mat(); // output binary image
+        Imgproc.threshold(sharp, thresholded,
+                Math.abs(allianceGrayParameters.threshold_low),    // threshold value
+                255,   // white
+                Imgproc.THRESH_BINARY); // thresholding type
+        RobotLogCommon.v(TAG, "Threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
+
+        String thrFilename = pOutputFilenamePreamble + "_THR.png";
+        Imgcodecs.imwrite(thrFilename, thresholded);
+        RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
         //##PY The Laplacian filtering and the sharpening do make a difference.
         /*
@@ -115,19 +140,19 @@ public class WatershedRecognitionFtc {
 
         //! [bin]
         // Create binary image from source image
-        Mat bw = new Mat();
-        Imgproc.cvtColor(imgResult, bw, Imgproc.COLOR_BGR2GRAY);
-        Imgproc.threshold(bw, bw, 40, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
+        //**TODO WatershedRecognitionStd uses Mat bw = new Mat();
+        //Imgproc.cvtColor(imgResult, bw, Imgproc.COLOR_BGR2GRAY);
+        //Imgproc.threshold(bw, bw, 40, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
 
         // Output the thresholded image.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_THR.png", bw);
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_THR.png", thresholded);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_THR.png");
         //! [bin]
 
         //! [dist]
         // Perform the distance transform algorithm
         Mat dist = new Mat();
-        Imgproc.distanceTransform(bw, dist, Imgproc.DIST_L2, 3);
+        Imgproc.distanceTransform(thresholded, dist, Imgproc.DIST_L2, 3);
 
         // Normalize the distance image for range = {0.0, 1.0}
         // so we can visualize and threshold it
@@ -200,7 +225,7 @@ public class WatershedRecognitionFtc {
 
         //! [watershed]
         // Perform the watershed algorithm
-        Imgproc.watershed(imgResult, markers);
+        Imgproc.watershed(thresholded, markers);
 
         //##PY This so-called "Markers_V2" image is not used in any further
         // processing.
@@ -257,6 +282,45 @@ public class WatershedRecognitionFtc {
         //! [watershed]
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+    }
+
+    //## Imported from IJCenterStageVision.
+    // Split the original image ROI into its BGR channels. The alliance
+    // determines which channel to pre-process and return. For better
+    // contrast the RED alliance uses the inversion of the blue channel
+    // and the BLUE alliance uses the inversion of the red channel.
+    private Mat splitAndInvertChannels(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
+        ArrayList<Mat> channels = new ArrayList<>(3);
+        Core.split(pImageROI, channels); // red or blue channel. B = 0, G = 1, R = 2
+        Mat selectedChannel;
+        switch (pAlliance) {
+            case RED -> {
+                // The inversion of the blue channel gives better contrast
+                // than the red channel.
+                selectedChannel = channels.get(0);
+                Core.bitwise_not(selectedChannel, selectedChannel);
+                Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE_INVERTED.png", selectedChannel);
+                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE_INVERTED.png");
+            }
+            case BLUE -> {
+                // The inversion of the red channel gives better contrast
+                // than the blue channel.
+                selectedChannel = channels.get(2);
+                Core.bitwise_not(selectedChannel, selectedChannel);
+                Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_INVERTED.png", selectedChannel);
+                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_INVERTED.png");
+            }
+            default -> throw new AutonomousRobotException(TAG, "Alliance must be RED or BLUE");
+        }
+
+        // Always adjust the grayscale.
+        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel,
+                pGrayParameters.median_target);
+
+        Imgproc.erode(adjustedGray, adjustedGray, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
+        Imgproc.dilate(adjustedGray, adjustedGray, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
+
+        return adjustedGray;
     }
 
     //## Imported from IJCenterStageVision.
