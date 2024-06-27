@@ -79,16 +79,15 @@ public class WatershedRecognitionFtc {
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
 
-        // Split the BGR image into its components; see the comments above the method.
-        Mat split = splitAndInvertChannels(pImageROI, alliance, allianceGrayParameters, pOutputFilenamePreamble);
+        //##PY Apply a sharpening kernel to the color image.
+        Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
 
-        //##PY Apply a sharpening kernel from stackoverflow.
-        // Unlike WatershedRecognitionStd here we will sharpen the grayscale image.
-        Mat sharp = sharpen(split, pOutputFilenamePreamble);
+        // Split the BGR image into its components; see the comments above the method.
+        Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
         // Threshold the image: set pixels over the threshold value to white.
         Mat thresholded = new Mat(); // output binary image
-        Imgproc.threshold(sharp, thresholded,
+        Imgproc.threshold(split, thresholded,
                 Math.abs(allianceGrayParameters.threshold_low),    // threshold value
                 255,   // white
                 Imgproc.THRESH_BINARY); // thresholding type
@@ -225,7 +224,7 @@ public class WatershedRecognitionFtc {
 
         //! [watershed]
         // Perform the watershed algorithm
-        Imgproc.watershed(thresholded, markers);
+        Imgproc.watershed(sharp, markers);
 
         //##PY This so-called "Markers_V2" image is not used in any further
         // processing.
