@@ -33,6 +33,8 @@ public class WatershedRecognitionFtc {
     // Use the OpenCV Watershed algorithm with FTC images. The code here is based
     // on WatershedRecognitionStd, which itself is derived from the sample at --
     // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html
+    //**TODO Cite Python explanation at
+    // https://medium.com/@jaskaranbhatia/exploring-image-segmentation-techniques-watershed-algorithm-using-opencv-9f73d2bc7c5a
     // Returns the result of image analysis.
     public RobotConstants.RecognitionResults performWatershedFtc(ImageProvider pImageProvider,
                                                                  VisionParameters.ImageParameters pImageParameters,
@@ -80,6 +82,7 @@ public class WatershedRecognitionFtc {
         }
 
         //##PY The Laplacian filtering and the sharpening do make a difference.
+        // But they can be replaced by a simple sharpening kernel - see below.
         /*
         //! [sharp]
         // Create a kernel that we will use to sharpen our image
@@ -132,6 +135,15 @@ public class WatershedRecognitionFtc {
         // Split the BGR image into its components; see the comments above the method.
         Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
+        //**TODO From the looks of things we get what we need after the distanceTransform.
+        // So split this into two paths: distance transform + bright spot or pixel count
+        // and watershed following https://medium.com/@jaskaranbhatia/exploring-image-segmentation-techniques-watershed-algorithm-using-opencv-9f73d2bc7c5a
+        //**TODO How do you use the final output of the watershed?
+
+        //**TODO Use ImageUtils.performThresholdOnGray to adjust the grayscale median
+        // then internally call ImageUtils.applyGrayThreshold to erode, dilate, and
+        // blur before thresholding.
+
         // Threshold the image: set pixels over the threshold value to white.
         Mat thresholded = new Mat(); // output binary image
         Imgproc.threshold(split, thresholded,
@@ -144,46 +156,64 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(thrFilename, thresholded);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
+        // The distance identifies regions that are likely to be in
+        // the foreground.
         //! [dist]
-        // Perform the distance transform algorithm
+        // Perform the distance transform algorithm. Imgproc.DIST_L2
+        // is a flag for Euclidean distance. Output is 32FC1.
         Mat dist = new Mat();
         Imgproc.distanceTransform(thresholded, dist, Imgproc.DIST_L2, 3);
 
+        //##PY not necessary - just normalize to the range of 0 - 255
         // Normalize the distance image for range = {0.0, 1.0}
-        // so we can visualize and threshold it
+        // so we can visualize and threshold it.
+        /*
         Core.normalize(dist, dist, 0.0, 1.0, Core.NORM_MINMAX);
         Mat distDisplayScaled = new Mat();
         Core.multiply(dist, new Scalar(255), distDisplayScaled);
         Mat distDisplay = new Mat();
         distDisplayScaled.convertTo(distDisplay, CvType.CV_8U);
+        */
+
+        Core.normalize(dist, dist, 0.0, 255.0, Core.NORM_MINMAX);
+        Mat dist_8u = new Mat();
+        dist.convertTo(dist_8u, CvType.CV_8U);
 
         // Output the transformed image.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_DIST.png", distDisplay);
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_DIST.png", dist_8u);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
         //! [dist]
 
         //! [peaks]
-        // Threshold to obtain the peaks
-        // This will be the markers for the foreground objects
-        Imgproc.threshold(dist, dist, 0.4, 1.0, Imgproc.THRESH_BINARY);
+        // Threshold to obtain the peaks.
+        // These will be the markers for the foreground objects.
+        //##PY Since we've already normalized to a range of 0 - 255 we can replace this
+        // Imgproc.threshold(dist, dist, 0.4, 1.0, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(dist_8u, dist_8u, 100, 255, Imgproc.THRESH_BINARY);
 
-        // Dilate a bit the dist image
+        //##PY not necessary:  Dilate a bit the dist image
+        /*
         Mat kernel1 = Mat.ones(3, 3, CvType.CV_8U);
         Imgproc.dilate(dist, dist, kernel1);
         Mat distDisplay2 = new Mat();
         dist.convertTo(distDisplay2, CvType.CV_8U);
         Core.multiply(distDisplay2, new Scalar(255), distDisplay2);
+        */
 
         // Output the foreground peaks.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_PEAK.png", distDisplay2);
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_PEAK.png", dist_8u);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_PEAK.png");
         //! [peaks]
 
         //! [seeds]
+        //##PY We don't need this conversion here because we've already
+        // created Mat dist_8u.
+        /*
         // Create the CV_8U version of the distance image
         // It is needed for findContours()
         Mat dist_8u = new Mat();
         dist.convertTo(dist_8u, CvType.CV_8U);
+        */
 
         // Find total markers
         List<MatOfPoint> contours = new ArrayList<>();
@@ -203,6 +233,10 @@ public class WatershedRecognitionFtc {
         for (int i = 0; i < contours.size(); i++) {
             Imgproc.drawContours(markers, contours, i, new Scalar(i + 1), -1);
         }
+
+        //**TODO The way of choosing the background marker below looks suspect.
+        // Look at the method in --
+        // https://medium.com/@jaskaranbhatia/exploring-image-segmentation-techniques-watershed-algorithm-using-opencv-9f73d2bc7c5a
 
         // Draw the background marker
         Mat markersScaled = new Mat();
