@@ -139,14 +139,15 @@ public class WatershedRecognitionFtc {
         // So split this into two paths: distance transform + bright spot or pixel count
         // and watershed following https://medium.com/@jaskaranbhatia/exploring-image-segmentation-techniques-watershed-algorithm-using-opencv-9f73d2bc7c5a
         //**TODO How do you use the final output of the watershed?
+        //**TODO But for now keep going with the watershed.
 
-        //**TODO Use ImageUtils.performThresholdOnGray to adjust the grayscale median
-        // then internally call ImageUtils.applyGrayThreshold to erode, dilate, and
-        // blur before thresholding.
+        // Normalize lighting to a known good value.
+        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
 
+        // Follow medium.com and threshold the grayscale (in our case adjusted).
         // Threshold the image: set pixels over the threshold value to white.
         Mat thresholded = new Mat(); // output binary image
-        Imgproc.threshold(split, thresholded,
+        Imgproc.threshold(adjustedGray, thresholded,
                 Math.abs(allianceGrayParameters.threshold_low),    // threshold value
                 255,   // white
                 Imgproc.THRESH_BINARY); // thresholding type
@@ -156,13 +157,38 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(thrFilename, thresholded);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
+        // Follow medium.com and perform two morphological openings on the grayscale image.
+        Mat opening = new Mat();
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.morphologyEx(thresholded, opening, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
+
+        String openFilename = pOutputFilenamePreamble + "_OPEN.png";
+        Imgcodecs.imwrite(openFilename, opening);
+        RobotLogCommon.d(TAG, "Writing " + openFilename);
+
+        // Follow medium.com and perform
+        //dilation for background identification: input = opening, output -> sure_bg
+        //# sure background area
+        //        sure_bg = cv2.dilate(opening, kernel, iterations=3)
+        Mat sure_bg = new Mat();
+        Imgproc.dilate(opening, sure_bg, kernel,  new Point(-1, -1), 3);
+
+        String bgFilename = pOutputFilenamePreamble + "_BG.png";
+        Imgcodecs.imwrite(bgFilename, sure_bg);
+        RobotLogCommon.d(TAG, "Writing " + bgFilename);
+
+        // Follow medium.com and
+        //find the sure foreground area
+        //        dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2,5)
+        //        ret, sure_fg = cv2.threshold(dist_transform, 0.7 * dist_transform.max(), 255, 0)
+
         // The distance identifies regions that are likely to be in
         // the foreground.
         //! [dist]
         // Perform the distance transform algorithm. Imgproc.DIST_L2
         // is a flag for Euclidean distance. Output is 32FC1.
         Mat dist = new Mat();
-        Imgproc.distanceTransform(thresholded, dist, Imgproc.DIST_L2, 3);
+        Imgproc.distanceTransform(opening, dist, Imgproc.DIST_L2, 3);
 
         //##PY not necessary - just normalize to the range of 0 - 255
         // Normalize the distance image for range = {0.0, 1.0}
@@ -183,6 +209,8 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_DIST.png", dist_8u);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
         //! [dist]
+
+        //**TODO STOPPED HERE 6/28/2024
 
         //! [peaks]
         // Threshold to obtain the peaks.
