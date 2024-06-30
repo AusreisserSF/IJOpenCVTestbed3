@@ -210,14 +210,16 @@ public class WatershedRecognitionFtc {
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
         //! [dist]
 
-        //**TODO STOPPED HERE 6/28/2024
+        // Follow medium.com
+        // find the sure foreground area
 
         //! [peaks]
         // Threshold to obtain the peaks.
         // These will be the markers for the foreground objects.
         //##PY Since we've already normalized to a range of 0 - 255 we can replace this
         // Imgproc.threshold(dist, dist, 0.4, 1.0, Imgproc.THRESH_BINARY);
-        Imgproc.threshold(dist_8u, dist_8u, 100, 255, Imgproc.THRESH_BINARY);
+        Mat sure_fg = new Mat();
+        Imgproc.threshold(dist_8u, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
 
         //##PY not necessary:  Dilate a bit the dist image
         /*
@@ -229,8 +231,8 @@ public class WatershedRecognitionFtc {
         */
 
         // Output the foreground peaks.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_PEAK.png", dist_8u);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_PEAK.png");
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_FG.png", sure_fg);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_FG.png");
         //! [peaks]
 
         //! [seeds]
@@ -243,10 +245,11 @@ public class WatershedRecognitionFtc {
         dist.convertTo(dist_8u, CvType.CV_8U);
         */
 
-        // Find total markers
+        // Find the sure foreground objects.
+        //## medium.com uses connectedComponents; the standard example uses findContours.
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
-        Imgproc.findContours(dist_8u, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+        Imgproc.findContours(sure_fg, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
         //#PY added - output the contours.
         Mat contoursOut = pImageROI.clone();
@@ -254,18 +257,85 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON.png", contoursOut);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON.png");
 
-        // Create the marker image for the watershed algorithm
-        Mat markers = Mat.zeros(dist.size(), CvType.CV_32S);
+        // Follow medium.com
+        // find unknown regions
+        //  sure_fg = np.uint8(sure_fg)
+        //  unknown = cv2.subtract(sure_bg, sure_fg)
+        Mat unknown = new Mat();
+        Core.subtract(sure_bg, sure_fg, unknown);
 
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_UNK.png", unknown);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_UNK.png");
+
+        // Follow medium.com
+        /*
+        Label the sure_bg, sure_fg and unknown regions
+        # Marker labelling
+        # Connected Components determines the connectivity of blob-like regions in a binary image.
+        ret, markers = cv2.connectedComponents(sure_fg)
+
+        # Add one to all labels so that sure background is not 0, but 1
+        markers = markers+1
+
+        # Now, mark the region of unknown with zero
+        markers[unknown==255] = 0
+         */
+
+        /*
+        Also, we want the sure background to be labeled differently from
+        the sure foreground, we add 1 to all the labels in the marker image.
+        After this operation, sure background pixels are labeled as 1, and
+        the sure foreground pixels are labeled starting from 2.
+         */
+
+        // Instead of connected components use the method from the standard example.
+        // Create the marker image for the watershed algorithm
+        Mat markers = Mat.ones(dist.size(), CvType.CV_32S);
+        // # Add one to all labels so that sure background is not 0, but 1
+        // markers = markers+1
         // Draw the foreground markers
         for (int i = 0; i < contours.size(); i++) {
-            Imgproc.drawContours(markers, contours, i, new Scalar(i + 1), -1);
+            Imgproc.drawContours(markers, contours, i, new Scalar(i + 2), -1);
         }
 
-        //**TODO The way of choosing the background marker below looks suspect.
-        // Look at the method in --
-        // https://medium.com/@jaskaranbhatia/exploring-image-segmentation-techniques-watershed-algorithm-using-opencv-9f73d2bc7c5a
+        // Follow medium.com
+        // # Now, mark the region of unknown with zero
+        // markers[unknown==255] = 0
 
+        // Since we don't have that nice Python syntax,
+        // we need to iterate through the Mat of unknowns and for every
+        // white (255) value, set the marker at the some location to 0.
+        // See https://answers.opencv.org/question/5/how-to-get-and-modify-the-pixel-of-mat-in-java/?answer=8#post-id-8
+        /*
+        Mat m = ...  // assuming it's of CV_8U type
+        byte buff[] = new byte[m.total() * m.channels()];
+        m.get(0, 0, buff);
+        // working with buff
+        // ...
+        m.put(0, 0, buff);
+         */
+
+        //?? Shouldn't both channel values be 1??
+        // The number of elements in these two arrays should be the same.
+        byte[] unknownData = new byte[(int) (unknown.total() * unknown.channels())];
+        int[] markerData = new int[(int) (markers.total() * markers.channels())];
+        int numMarkerRows = markers.rows();
+        int numMarkerCols = markers.cols();
+        unknown.get(0, 0, unknownData);
+        markers.get(0, 0, markerData);
+        int sharedIndex;
+        for (int i = 0; i <numMarkerRows; i++) {
+            for (int j = 0; j < numMarkerCols; j++) {
+                sharedIndex = (i * numMarkerCols) + j;
+                if ((unknownData[sharedIndex] & 0xff) == 255)
+                    markerData[sharedIndex] = 0;
+            }
+        }
+
+        markers.put(0, 0, markerData); // back into Mat
+
+        //## The way of choosing the background marker below looks suspect.
+        /*
         // Draw the background marker
         Mat markersScaled = new Mat();
         markers.convertTo(markersScaled, CvType.CV_32F);
@@ -279,6 +349,7 @@ public class WatershedRecognitionFtc {
 
         Imgproc.circle(markers, new Point(5, 5), 3, new Scalar(255, 255, 255), -1);
         //! [seeds]
+        */
 
         //! [watershed]
         // Perform the watershed algorithm
@@ -307,6 +378,10 @@ public class WatershedRecognitionFtc {
 
             colors.add(new Scalar(b, g, r));
         }
+
+        //**TODO With medium.com the final output comes out inverted,
+        // i.e. the watershedded object is black and the background
+        // is color.
 
         // Create the result image
         Mat dst = Mat.zeros(markers.size(), CvType.CV_8UC3);
