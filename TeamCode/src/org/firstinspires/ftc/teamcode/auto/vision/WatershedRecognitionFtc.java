@@ -31,10 +31,25 @@ public class WatershedRecognitionFtc {
     }
 
     // Use the OpenCV Watershed algorithm with FTC images. The code here is based
-    // on WatershedRecognitionStd, which itself is derived from the sample at --
-    // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html
-    //**TODO Cite Python explanation at
+    // on a combination of the official example at
+    // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html,
+    // which is implemented in this project as WatershedRecognitionStd, and
+    // a Python solution at
     // https://medium.com/@jaskaranbhatia/exploring-image-segmentation-techniques-watershed-algorithm-using-opencv-9f73d2bc7c5a
+
+    //**TODO From the testing so far it's not at all clear that the Watershed technique
+    // will be useful in FTC; the watershed output of the blue team prop in CenterStage
+    // merges the team prop and the blue spike - but the output of the distanceTransform
+    // does look promising - it eliminates the blue spike. And it's not clear how you would
+    // actually use the final output of the watershed in FTC.
+
+    //**TODO For the sake of completeness keep going with the watershed. Introduce a
+    // third reference: the OpenCV 3 Computer Vision Application Programming Cookbook,
+    // Third Edition, by Roboert Laganiere; pg. 162. Note how he uses erosion to create
+    // the sure foreground (instead of thresholding how he uses gray 128 as his sure
+    // background, how he adds foreground and background to get his markers, and how
+    // he outputs the final results, including just the boundaries.
+
     // Returns the result of image analysis.
     public RobotConstants.RecognitionResults performWatershedFtc(ImageProvider pImageProvider,
                                                                  VisionParameters.ImageParameters pImageParameters,
@@ -134,12 +149,6 @@ public class WatershedRecognitionFtc {
 
         // Split the BGR image into its components; see the comments above the method.
         Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
-
-        //**TODO From the looks of things we get what we need after the distanceTransform.
-        // So split this into two paths: distance transform + bright spot or pixel count
-        // and watershed following https://medium.com/@jaskaranbhatia/exploring-image-segmentation-techniques-watershed-algorithm-using-opencv-9f73d2bc7c5a
-        //**TODO How do you use the final output of the watershed?
-        //**TODO But for now keep going with the watershed.
 
         // Normalize lighting to a known good value.
         Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
@@ -378,10 +387,6 @@ public class WatershedRecognitionFtc {
 
             colors.add(new Scalar(b, g, r));
         }
-
-        //**TODO With medium.com the final output comes out inverted,
-        // i.e. the watershedded object is black and the background
-        // is color.
 
         // Create the result image
         Mat dst = Mat.zeros(markers.size(), CvType.CV_8UC3);
