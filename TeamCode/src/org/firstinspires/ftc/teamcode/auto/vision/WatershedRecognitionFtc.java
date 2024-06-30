@@ -394,10 +394,11 @@ public class WatershedRecognitionFtc {
         for (int i = 0; i < markers.rows(); i++) {
             for (int j = 0; j < markers.cols(); j++) {
                 int index = markersData[i * markers.cols() + j];
-                if (index > 0 && index <= contours.size()) {
-                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 1).val[0];
-                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 1).val[1];
-                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 1).val[2];
+                // watershed object markers start at 2
+                if (index >= 2) {
+                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 2).val[0];
+                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 2).val[1];
+                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 2).val[2];
                 } else {
                     dstData[(i * dst.cols() + j) * 3 + 0] = 0;
                     dstData[(i * dst.cols() + j) * 3 + 1] = 0;
