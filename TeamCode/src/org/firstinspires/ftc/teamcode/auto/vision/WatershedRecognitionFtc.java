@@ -45,10 +45,10 @@ public class WatershedRecognitionFtc {
 
     //**TODO For the sake of completeness keep going with the watershed. Introduce a
     // third reference: the OpenCV 3 Computer Vision Application Programming Cookbook,
-    // Third Edition, by Roboert Laganiere; pg. 162. Note how he uses erosion to create
-    // the sure foreground (instead of thresholding how he uses gray 128 as his sure
-    // background, how he adds foreground and background to get his markers, and how
-    // he outputs the final results, including just the boundaries.
+    // Third Edition, by Robert Laganiere; pg. 162. Note how he uses erosion to create
+    // the sure foreground and dilation to create the sure background, how he adds
+    // foreground and background to get his markers, and how he outputs the final results,
+    // including just the boundaries.
 
     // Returns the result of image analysis.
     public RobotConstants.RecognitionResults performWatershedFtc(ImageProvider pImageProvider,
