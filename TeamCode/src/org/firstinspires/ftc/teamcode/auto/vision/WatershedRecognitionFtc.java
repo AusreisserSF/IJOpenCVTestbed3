@@ -166,7 +166,7 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(thrFilename, thresholded);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
-        // Follow medium.com and perform two morphological openings on the grayscale image.
+        // Follow medium.com and perform two morphological openings on the thresholded image.
         Mat opening = new Mat();
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
         Imgproc.morphologyEx(thresholded, opening, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);

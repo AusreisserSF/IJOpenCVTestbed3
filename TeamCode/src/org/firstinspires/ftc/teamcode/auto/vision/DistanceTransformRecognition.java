@@ -12,13 +12,14 @@ import org.opencv.imgproc.Imgproc;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class DistanceTransformRecognition {
 
     private static final String TAG = DistanceTransformRecognition.class.getSimpleName();
 
     public enum DistanceTransformRecognitionPath {
-        COLOR_CHANNEL_BRIGHT_SPOT, COLOR_CHANNEL_PIXEL_COUNT
+        COLOR_CHANNEL_BRIGHT_SPOT, COLOR_CHANNEL_CONTOURS, COLOR_CHANNEL_PIXEL_COUNT
     }
 
     private final RobotConstants.Alliance alliance;
@@ -55,11 +56,11 @@ public class DistanceTransformRecognition {
             // Use a switch by convention in case we have more paths in the future.
             case COLOR_CHANNEL_BRIGHT_SPOT -> {
                 Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
-                return findBrightSpot(imageROI, distanceTransformImage, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
+                return colorChannelBrightSpot(imageROI, distanceTransformImage, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
             }
-            case COLOR_CHANNEL_PIXEL_COUNT -> {
+            case COLOR_CHANNEL_CONTOURS -> {
                 Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
-                return colorChannelPixelCount(imageROI, distanceTransformImage, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
+                return colorChannelContours(imageROI, distanceTransformImage, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
             }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
         }
@@ -97,7 +98,7 @@ public class DistanceTransformRecognition {
         Imgcodecs.imwrite(thrFilename, thresholded);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
-        // Follow medium.com and perform two morphological openings on the grayscale image.
+        // Follow medium.com and perform two morphological openings on the thresholded image.
         Mat opening = new Mat();
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
         Imgproc.morphologyEx(thresholded, opening, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
@@ -126,16 +127,16 @@ public class DistanceTransformRecognition {
         return dist_8u;
     }
 
-    private RobotConstants.RecognitionResults findBrightSpot(Mat pImageROI, Mat pDistanceImage,
-                                                             String pOutputFilenamePreamble,
-                                                             WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
+    private RobotConstants.RecognitionResults colorChannelBrightSpot(Mat pImageROI, Mat pDistanceImage,
+                                                                     String pOutputFilenamePreamble,
+                                                                     WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
         Core.MinMaxLocResult brightResult = Core.minMaxLoc(pDistanceImage);
         VisionParameters.GrayParameters allianceGrayParameters;
         switch (alliance) {
             case RED -> allianceGrayParameters = pWwatershedDistanceParameters.redGrayParameters;
             case BLUE -> allianceGrayParameters = pWwatershedDistanceParameters.blueGrayParameters;
             default ->
-                    throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
+                    throw new AutonomousRobotException(TAG, "findBrightSpot requires an alliance selection");
         }
 
         RobotLogCommon.d(TAG, "Bright spot location " + brightResult.maxLoc + ", value " + brightResult.maxVal);
@@ -156,9 +157,9 @@ public class DistanceTransformRecognition {
     }
 
     //**TODO Need pixel count limits by alliance.
-    private RobotConstants.RecognitionResults colorChannelPixelCount(Mat pImageROI, Mat pDistanceImage,
-                                                                     String pOutputFilenamePreamble,
-                                                                     WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
+    private RobotConstants.RecognitionResults colorChannelContours(Mat pImageROI, Mat pDistanceImage,
+                                                                   String pOutputFilenamePreamble,
+                                                                   WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
         //! [peaks]
         // Threshold to obtain the peaks.
         // These will be the markers for the foreground objects.
@@ -168,18 +169,33 @@ public class DistanceTransformRecognition {
         Mat sure_fg = new Mat();
         Imgproc.threshold(pDistanceImage, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
 
-        // Find the sure foreground objects.
-        //## medium.com uses connectedComponents; the standard example uses findContours.
-        List<MatOfPoint> contours = new ArrayList<>();
-        Mat hierarchy = new Mat();
-        Imgproc.findContours(sure_fg, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+        Optional<Pair<Integer, MatOfPoint>> targetContour = ImageUtils.getLargestContour(pImageROI, sure_fg, pOutputFilenamePreamble);
+        if (!targetContour.isPresent()) {
+            RobotLogCommon.d(TAG, "No contours found");
+            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+        }
 
-        //**TODO Get the centroid and log.
-        //#PY added - output the contours.
+        MatOfPoint largestContour = targetContour.get().second;
+        double contourArea = Imgproc.contourArea(largestContour);
+        RobotLogCommon.d(TAG, "Area of largest contour: " + contourArea);
+
+        // Make sure the largest contour is within our bounds.
+        //**TODO Support bounds
+        /*
+        if (contourArea < pColorChannelContoursParameters.minArea ||
+                contourArea > pColorChannelContoursParameters.maxArea) {
+            RobotLogCommon.d(TAG, "The largest contour violates the size criteria");
+            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+         }
+         */
+
+        // Draw the largest contour on the ROI.
         Mat contoursOut = pImageROI.clone();
-        ShapeDrawing.drawShapeContours(contours, contoursOut);
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON.png", contoursOut);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON.png");
+        List<MatOfPoint> requiredArray = new ArrayList<>(List.of(largestContour)); // required by drawContours
+        Imgproc.drawContours(contoursOut, requiredArray, 0, new Scalar(0, 255, 0), 2);
+
+        // Get the center point of the largest contour.
+        Point contourCentroid = ImageUtils.getContourCentroid(largestContour);
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
