@@ -18,7 +18,7 @@ public class DistanceTransformRecognition {
     private static final String TAG = DistanceTransformRecognition.class.getSimpleName();
 
     public enum DistanceTransformRecognitionPath {
-        BRIGHT_SPOT, PIXEL_COUNT
+        COLOR_CHANNEL_BRIGHT_SPOT, COLOR_CHANNEL_PIXEL_COUNT
     }
 
     private final RobotConstants.Alliance alliance;
@@ -32,6 +32,7 @@ public class DistanceTransformRecognition {
     // Use the OpenCV Distance Transform algorithm to detect an object.
 
     // Returns the result of image analysis.
+    //**TODO Use of WatershedParametersFtc is temporary.
     public RobotConstants.RecognitionResults performDistanceTransform(ImageProvider pImageProvider,
                                                                       VisionParameters.ImageParameters pImageParameters,
                                                                       DistanceTransformRecognitionPath pWatershedRecognitionPath,
@@ -52,13 +53,13 @@ public class DistanceTransformRecognition {
         // Adapt the standard example to our environment.
         switch (pWatershedRecognitionPath) {
             // Use a switch by convention in case we have more paths in the future.
-            case BRIGHT_SPOT -> {
+            case COLOR_CHANNEL_BRIGHT_SPOT -> {
                 Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
-                return findBrightSpot(imageROI, distanceTransformImage, outputFilenamePreamble);
+                return findBrightSpot(imageROI, distanceTransformImage, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
             }
-            case PIXEL_COUNT -> {
+            case COLOR_CHANNEL_PIXEL_COUNT -> {
                 Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
-                return countContourPixels(imageROI, distanceTransformImage, outputFilenamePreamble);
+                return colorChannelPixelCount(imageROI, distanceTransformImage, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
             }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
         }
@@ -71,7 +72,7 @@ public class DistanceTransformRecognition {
         switch (alliance) {
             case RED -> allianceGrayParameters = pWwatershedDistanceParameters.redGrayParameters;
             case BLUE -> allianceGrayParameters = pWwatershedDistanceParameters.blueGrayParameters;
-            default -> throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
+            default -> throw new AutonomousRobotException(TAG, "distance transform requires an alliance selection");
         }
 
         //##PY Apply a sharpening kernel to the color image.
@@ -125,14 +126,22 @@ public class DistanceTransformRecognition {
         return dist_8u;
     }
 
-    //**TODO Adapt bright spot detection.
-    private RobotConstants.RecognitionResults findBrightSpot(Mat pImageROI, Mat pDistanceImage, String pOutputFilenamePreamble) {
-        /*
-               Core.MinMaxLocResult brightResult = Core.minMaxLoc(pDistanceImage);
+    private RobotConstants.RecognitionResults findBrightSpot(Mat pImageROI, Mat pDistanceImage,
+                                                             String pOutputFilenamePreamble,
+                                                             WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
+        Core.MinMaxLocResult brightResult = Core.minMaxLoc(pDistanceImage);
+        VisionParameters.GrayParameters allianceGrayParameters;
+        switch (alliance) {
+            case RED -> allianceGrayParameters = pWwatershedDistanceParameters.redGrayParameters;
+            case BLUE -> allianceGrayParameters = pWwatershedDistanceParameters.blueGrayParameters;
+            default ->
+                    throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
+        }
+
         RobotLogCommon.d(TAG, "Bright spot location " + brightResult.maxLoc + ", value " + brightResult.maxVal);
 
         Mat brightSpotOut = pImageROI.clone();
-        Imgproc.circle(brightSpotOut, brightResult.maxLoc, (int) allianceBlurKernel, new Scalar(0, 255, 0));
+        Imgproc.circle(brightSpotOut, brightResult.maxLoc, 10, new Scalar(0, 255, 0));
 
         String brightSpotFilename = pOutputFilenamePreamble + "_BRIGHT.png";
         RobotLogCommon.d(TAG, "Writing " + brightSpotFilename);
@@ -140,22 +149,22 @@ public class DistanceTransformRecognition {
 
         // If the bright spot is under the threshold then assume no Team Prop is present.
         if (brightResult.maxVal < allianceGrayParameters.threshold_low) {
-            Pair<Rect, RobotConstantsCenterStage.TeamPropLocation> nposWindow = spikeWindows.get(RobotConstantsCenterStage.SpikeLocationWindow.WINDOW_NPOS);
             RobotLogCommon.d(TAG, "Bright spot value was under the threshold");
-            SpikeWindowUtils.drawSpikeWindows(pImageROI.clone(), spikeWindows, pOutputFilenamePreamble);
-            return new TeamPropReturn(RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL, nposWindow.second);
         }
-         */
+
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
     //**TODO Need pixel count limits by alliance.
-    private RobotConstants.RecognitionResults countContourPixels(Mat pImageROI, Mat pDistanceImage, String pOutputFilenamePreamble) {
+    private RobotConstants.RecognitionResults colorChannelPixelCount(Mat pImageROI, Mat pDistanceImage,
+                                                                     String pOutputFilenamePreamble,
+                                                                     WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
         //! [peaks]
         // Threshold to obtain the peaks.
         // These will be the markers for the foreground objects.
         //##PY Since we've already normalized to a range of 0 - 255 we can replace this
         // Imgproc.threshold(dist, dist, 0.4, 1.0, Imgproc.THRESH_BINARY);
+        //**TODO foreground threshold low limit is hardcoded.
         Mat sure_fg = new Mat();
         Imgproc.threshold(pDistanceImage, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
 
