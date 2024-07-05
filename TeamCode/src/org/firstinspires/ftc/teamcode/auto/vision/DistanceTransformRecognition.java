@@ -11,8 +11,6 @@ import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
 
 public class DistanceTransformRecognition {
 
@@ -152,9 +150,9 @@ public class DistanceTransformRecognition {
         Mat brightSpotOut = pImageROI.clone();
         Imgproc.circle(brightSpotOut, brightResult.maxLoc, 10, new Scalar(0, 255, 0));
 
-        String brightSpotFilename = pOutputFilenamePreamble + "_BRIGHT.png";
-        RobotLogCommon.d(TAG, "Writing " + brightSpotFilename);
-        Imgcodecs.imwrite(brightSpotFilename, brightSpotOut);
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_BRIGHT.png", brightSpotOut);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BRIGHT.png");
+
 
         // If the bright spot is under the threshold then assume no Team Prop is present.
         if (brightResult.maxVal < allianceGrayParameters.threshold_low) {
@@ -171,21 +169,22 @@ public class DistanceTransformRecognition {
         // Use the pixel count criteria parameters for the current alliance.
         int allianceMinWhitePixelCount;
         switch (alliance) {
-            case RED -> {
-                allianceMinWhitePixelCount = pPixelCountParameters.redMinWhitePixelCount;
-            }
-            case BLUE -> {
-                allianceMinWhitePixelCount = pPixelCountParameters.blueMinWhitePixelCount;
-            }
+            case RED -> allianceMinWhitePixelCount = pPixelCountParameters.redMinWhitePixelCount;
+            case BLUE -> allianceMinWhitePixelCount = pPixelCountParameters.blueMinWhitePixelCount;
             default ->
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
 
-        //**TODO Probably should threshold a second time - need threshold_low parameter.
-        // But wait for the target windows.
+        //**TODO Because the distance image has been morphologically opened
+        // we should probably threshold a second time.
+        Mat thresholded = new Mat();
+        Imgproc.threshold(pDistanceImage, thresholded, 100, 255, Imgproc.THRESH_BINARY);
 
-        int nonZeroCount = Core.countNonZero(pDistanceImage);
+        int nonZeroCount = Core.countNonZero(thresholded);
         RobotLogCommon.d(TAG, "White pixel count " + nonZeroCount);
+
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_PXC.png", thresholded);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_PXC.png");
 
         //**TODO Need generic target window boundaries ...
         /*
