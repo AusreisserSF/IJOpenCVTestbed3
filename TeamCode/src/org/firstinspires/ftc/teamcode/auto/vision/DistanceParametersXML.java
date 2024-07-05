@@ -26,9 +26,8 @@ public class DistanceParametersXML {
     public DistanceParametersXML(String pXMLDir) {
         Node distance_parameters_node;
         try {
-            RobotLogCommon.c(TAG, "Parsing " + DISTANCE_FILE_NAME);
-
             String xmlFilePath = pXMLDir + DISTANCE_FILE_NAME;
+            RobotLogCommon.c(TAG, "Parsing " + DISTANCE_FILE_NAME);
 
             DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
             dbFactory.setIgnoringComments(true);
@@ -181,7 +180,6 @@ public class DistanceParametersXML {
     public DistanceParameters getDistanceParameters() {
         return distanceParameters;
     }
-
 
 }
 

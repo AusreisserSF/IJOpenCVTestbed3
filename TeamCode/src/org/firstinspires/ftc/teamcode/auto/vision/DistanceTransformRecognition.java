@@ -55,57 +55,51 @@ public class DistanceTransformRecognition {
         switch (pWatershedRecognitionPath) {
             // Use a switch by convention in case we have more paths in the future.
             case COLOR_CHANNEL_BRIGHT_SPOT -> {
-                VisionParameters.GrayParameters brightSpotGrayParameters =
-                        getAllianceGrayParameters(pDistanceParameters.colorChannelBrightSpotParameters.redGrayParameters,
-                                pDistanceParameters.colorChannelBrightSpotParameters.blueGrayParameters);
-
-                Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble, brightSpotGrayParameters);
-                return colorChannelBrightSpot(imageROI, distanceTransformImage, outputFilenamePreamble, pDistanceParameters.colorChannelBrightSpotParameters);
+                        Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble,
+                        pDistanceParameters.colorChannelBrightSpotParameters.redGrayParameters,
+                        pDistanceParameters.colorChannelBrightSpotParameters.blueGrayParameters);
+                return colorChannelBrightSpot(imageROI, distanceTransformImage, outputFilenamePreamble,
+                        pDistanceParameters.colorChannelBrightSpotParameters);
             }
             case COLOR_CHANNEL_PIXEL_COUNT -> {
-                VisionParameters.GrayParameters pixelCountGrayParameters =
-                        getAllianceGrayParameters(pDistanceParameters.colorChannelPixelCountParameters.redGrayParameters,
-                                pDistanceParameters.colorChannelPixelCountParameters.blueGrayParameters);
-
-                Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble, pixelCountGrayParameters);
-                return colorChannelPixelCount(imageROI, distanceTransformImage, outputFilenamePreamble, pDistanceParameters.colorChannelPixelCountParameters);
+                Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble,
+                        pDistanceParameters.colorChannelPixelCountParameters.redGrayParameters,
+                        pDistanceParameters.colorChannelPixelCountParameters.blueGrayParameters);
+                return colorChannelPixelCount(imageROI, distanceTransformImage, outputFilenamePreamble,
+                        pDistanceParameters.colorChannelPixelCountParameters);
             }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
         }
     }
 
-    //**TODO Asymmetrical ...
-    private VisionParameters.GrayParameters getAllianceGrayParameters(VisionParameters.GrayParameters pRedGrayParameters,
-                                                                      VisionParameters.GrayParameters pBlueGrayParameters) {
+    private Mat getDistanceTransformImage(Mat pImageROI, String pOutputFilenamePreamble,
+                                          VisionParameters.GrayParameters pRedGrayParameters,
+                                          VisionParameters.GrayParameters pBlueGrayParameters) {
+
         VisionParameters.GrayParameters allianceGrayParameters;
         switch (alliance) {
-            case RED -> allianceGrayParameters = pWwatershedDistanceParameters.redGrayParameters;
-            case BLUE -> allianceGrayParameters = pWwatershedDistanceParameters.blueGrayParameters;
+            case RED -> allianceGrayParameters = pRedGrayParameters;
+            case BLUE -> allianceGrayParameters = pBlueGrayParameters;
             default -> throw new AutonomousRobotException(TAG, "distance transform requires an alliance selection");
         }
-
-        return allianceGrayParameters;
-    }
-
-    private Mat getDistanceTransformImage(Mat pImageROI, String pOutputFilenamePreamble, VisionParameters.GrayParameters pAllianceGrayParameters) {
 
         //##PY Apply a sharpening kernel to the color image.
         Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
 
         // Split the BGR image into its components; see the comments above the method.
-        Mat split = splitAndInvertChannels(sharp, alliance, pAllianceGrayParameters, pOutputFilenamePreamble);
+        Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
         // Normalize lighting to a known good value.
-        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, pAllianceGrayParameters.median_target);
+        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
 
         // Follow medium.com and threshold the grayscale (in our case adjusted).
         // Threshold the image: set pixels over the threshold value to white.
         Mat thresholded = new Mat(); // output binary image
         Imgproc.threshold(adjustedGray, thresholded,
-                Math.abs(pAllianceGrayParameters.threshold_low),    // threshold value
+                Math.abs(allianceGrayParameters.threshold_low),    // threshold value
                 255,   // white
                 Imgproc.THRESH_BINARY); // thresholding type
-        RobotLogCommon.v(TAG, "Threshold values: low " + pAllianceGrayParameters.threshold_low + ", high 255");
+        RobotLogCommon.v(TAG, "Threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
 
         String thrFilename = pOutputFilenamePreamble + "_THR.png";
         Imgcodecs.imwrite(thrFilename, thresholded);
@@ -142,16 +136,17 @@ public class DistanceTransformRecognition {
 
     private RobotConstants.RecognitionResults colorChannelBrightSpot(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
-                                                                     WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
-        Core.MinMaxLocResult brightResult = Core.minMaxLoc(pDistanceImage);
+                                                                     DistanceParameters.ColorChannelBrightSpotParameters pBrightSpotParameters) {
+
         VisionParameters.GrayParameters allianceGrayParameters;
         switch (alliance) {
-            case RED -> allianceGrayParameters = pWwatershedDistanceParameters.redGrayParameters;
-            case BLUE -> allianceGrayParameters = pWwatershedDistanceParameters.blueGrayParameters;
+            case RED -> allianceGrayParameters = pBrightSpotParameters.redGrayParameters;
+            case BLUE -> allianceGrayParameters = pBrightSpotParameters.blueGrayParameters;
             default ->
                     throw new AutonomousRobotException(TAG, "findBrightSpot requires an alliance selection");
         }
 
+        Core.MinMaxLocResult brightResult = Core.minMaxLoc(pDistanceImage);
         RobotLogCommon.d(TAG, "Bright spot location " + brightResult.maxLoc + ", value " + brightResult.maxVal);
 
         Mat brightSpotOut = pImageROI.clone();
@@ -169,46 +164,77 @@ public class DistanceTransformRecognition {
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
-    //**TODO Need pixel count limits by alliance.
-    private RobotConstants.RecognitionResults colorChannelContours(Mat pImageROI, Mat pDistanceImage,
+    private RobotConstants.RecognitionResults colorChannelPixelCount(Mat pImageROI, Mat pDistanceImage,
                                                                    String pOutputFilenamePreamble,
-                                                                   WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
-        //! [peaks]
-        // Threshold to obtain the peaks.
-        // These will be the markers for the foreground objects.
-        //##PY Since we've already normalized to a range of 0 - 255 we can replace this
-        // Imgproc.threshold(dist, dist, 0.4, 1.0, Imgproc.THRESH_BINARY);
-        //**TODO foreground threshold low limit is hardcoded.
-        Mat sure_fg = new Mat();
-        Imgproc.threshold(pDistanceImage, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
+                                                                   DistanceParameters.ColorChannelPixelCountParameters pPixelCountParameters) {
 
-        Optional<Pair<Integer, MatOfPoint>> targetContour = ImageUtils.getLargestContour(pImageROI, sure_fg, pOutputFilenamePreamble);
-        if (!targetContour.isPresent()) {
-            RobotLogCommon.d(TAG, "No contours found");
-            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+        // Use the pixel count criteria parameters for the current alliance.
+        int allianceMinWhitePixelCount;
+        switch (alliance) {
+            case RED -> {
+                allianceMinWhitePixelCount = pPixelCountParameters.redMinWhitePixelCount;
+            }
+            case BLUE -> {
+                allianceMinWhitePixelCount = pPixelCountParameters.blueMinWhitePixelCount;
+            }
+            default ->
+                    throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
 
-        MatOfPoint largestContour = targetContour.get().second;
-        double contourArea = Imgproc.contourArea(largestContour);
-        RobotLogCommon.d(TAG, "Area of largest contour: " + contourArea);
+        //**TODO Probably should threshold a second time - need threshold_low parameter.
+        // But wait for the target windows.
 
-        // Make sure the largest contour is within our bounds.
-        //**TODO Support bounds
+        int nonZeroCount = Core.countNonZero(pDistanceImage);
+        RobotLogCommon.d(TAG, "White pixel count " + nonZeroCount);
+
+        //**TODO Need generic target window boundaries ...
         /*
-        if (contourArea < pColorChannelContoursParameters.minArea ||
-                contourArea > pColorChannelContoursParameters.maxArea) {
-            RobotLogCommon.d(TAG, "The largest contour violates the size criteria");
-            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
-         }
+        // Get the white pixel count for both the left and right
+        // spike windows.
+        Pair<Rect, RobotConstantsCenterStage.TeamPropLocation> leftSpikeWindow =
+                spikeWindows.get(RobotConstantsCenterStage.SpikeLocationWindow.LEFT);
+        Mat leftSpikeWindowBoundary = thresholded.submat(leftSpikeWindow.first);
+        int leftNonZeroCount = Core.countNonZero(leftSpikeWindowBoundary);
+        RobotLogCommon.d(TAG, "Left spike window white pixel count " + leftNonZeroCount);
+
+        Pair<Rect, RobotConstantsCenterStage.TeamPropLocation> rightSpikeWindow =
+                spikeWindows.get(RobotConstantsCenterStage.SpikeLocationWindow.RIGHT);
+        Mat rightSpikeWindowBoundary = thresholded.submat(rightSpikeWindow.first);
+        int rightNonZeroCount = Core.countNonZero(rightSpikeWindowBoundary);
+        RobotLogCommon.d(TAG, "Right spike window white pixel count " + rightNonZeroCount);
+
+        // If both counts are less than the minimum then we infer that
+        // the Team Prop is in the third (non-visible) spike window.
+        if (leftNonZeroCount < allianceMinWhitePixelCount &&
+                rightNonZeroCount < allianceMinWhitePixelCount) {
+            Pair<Rect, RobotConstantsCenterStage.TeamPropLocation> nposWindow = spikeWindows.get(RobotConstantsCenterStage.SpikeLocationWindow.WINDOW_NPOS);
+            RobotLogCommon.d(TAG, "White pixel counts for the left and right spike windows were under the threshold");
+            SpikeWindowUtils.drawSpikeWindows(pImageROI.clone(), spikeWindows, pOutputFilenamePreamble);
+            return new TeamPropReturn(RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL, nposWindow.second);
+        }
+
+        // Compare the white pixel count in the left and right spike
+        // windows against each other.
+        Mat pixelCountOut = pImageROI.clone();
+        if (leftNonZeroCount >= rightNonZeroCount) {
+            Point leftSpikeWindowCentroid = new Point((leftSpikeWindow.first.x + leftSpikeWindow.first.width) / 2.0,
+                    (leftSpikeWindow.first.y + leftSpikeWindow.first.height) / 2.0);
+            RobotLogCommon.d(TAG, "Center of left spike window " + leftSpikeWindowCentroid);
+
+            Imgproc.circle(pixelCountOut, leftSpikeWindowCentroid, 10, new Scalar(0, 255, 0));
+            SpikeWindowUtils.drawSpikeWindows(pixelCountOut, spikeWindows, pOutputFilenamePreamble);
+            return new TeamPropReturn(RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL, leftSpikeWindow.second);
+        }
+
+        // Go with the right spike window.
+        Point rightSpikeWindowCentroid = new Point(rightSpikeWindow.first.x + (rightSpikeWindow.first.width / 2.0),
+                (rightSpikeWindow.first.y + rightSpikeWindow.first.height) / 2.0);
+        RobotLogCommon.d(TAG, "Center of right spike window " + rightSpikeWindowCentroid);
+
+        Imgproc.circle(pixelCountOut, rightSpikeWindowCentroid, 10, new Scalar(0, 255, 0));
+        SpikeWindowUtils.drawSpikeWindows(pixelCountOut, spikeWindows, pOutputFilenamePreamble);
          */
 
-        // Draw the largest contour on the ROI.
-        Mat contoursOut = pImageROI.clone();
-        List<MatOfPoint> requiredArray = new ArrayList<>(List.of(largestContour)); // required by drawContours
-        Imgproc.drawContours(contoursOut, requiredArray, 0, new Scalar(0, 255, 0), 2);
-
-        // Get the center point of the largest contour.
-        Point contourCentroid = ImageUtils.getContourCentroid(largestContour);
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
