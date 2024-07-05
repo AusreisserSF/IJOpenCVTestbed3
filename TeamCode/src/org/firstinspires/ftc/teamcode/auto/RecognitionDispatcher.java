@@ -229,9 +229,8 @@ public class RecognitionDispatcher extends Application {
             }
 
             case "DISTANCE" -> {
-                //**TODO TEMP - use watershed parameters.
-                WatershedParametersFtcXML watershedParametersFtcXML = new WatershedParametersFtcXML(fullTestCaseDir);
-                WatershedParametersFtc watershedParametersFtc = watershedParametersFtcXML.getWatershedParameters();
+                DistanceParametersXML distanceParametersXML = new DistanceParametersXML(fullTestCaseDir);
+                DistanceParameters distanceParameters = distanceParametersXML.getDistanceParameters();
 
                 // Get the <image_parameters> for the playing cards from the RobotAction XML file.
                 VisionParameters.ImageParameters watershedImageParameters =
@@ -257,7 +256,7 @@ public class RecognitionDispatcher extends Application {
                 DistanceTransformRecognition distanceTransformRecognition = new DistanceTransformRecognition(alliance, fullTestCaseDir);
                 RobotConstants.RecognitionResults distanceReturn =
                         distanceTransformRecognition.performDistanceTransform(fileImage, watershedImageParameters,
-                                distanceRecognitionPath, watershedParametersFtc);
+                                distanceRecognitionPath, distanceParameters);
 
                 displayResults(fullTestCaseDir + imageFilename,
                         buildResultsOnlyDisplayText(imageFilename, distanceReturn),

@@ -19,7 +19,7 @@ public class DistanceTransformRecognition {
     private static final String TAG = DistanceTransformRecognition.class.getSimpleName();
 
     public enum DistanceTransformRecognitionPath {
-        COLOR_CHANNEL_BRIGHT_SPOT, COLOR_CHANNEL_CONTOURS, COLOR_CHANNEL_PIXEL_COUNT
+        COLOR_CHANNEL_BRIGHT_SPOT, COLOR_CHANNEL_PIXEL_COUNT
     }
 
     private final RobotConstants.Alliance alliance;
@@ -37,7 +37,7 @@ public class DistanceTransformRecognition {
     public RobotConstants.RecognitionResults performDistanceTransform(ImageProvider pImageProvider,
                                                                       VisionParameters.ImageParameters pImageParameters,
                                                                       DistanceTransformRecognitionPath pWatershedRecognitionPath,
-                                                                      WatershedParametersFtc pWatershedParametersFtc) throws InterruptedException {
+                                                                      DistanceParameters pDistanceParameters) throws InterruptedException {
         RobotLogCommon.d(TAG, "In DistanceTransformRecognition.performDistanceTransform");
 
         // LocalDateTime requires Android minSdkVersion 26  public Pair<Mat, LocalDateTime> getImage() throws InterruptedException;
@@ -55,20 +55,28 @@ public class DistanceTransformRecognition {
         switch (pWatershedRecognitionPath) {
             // Use a switch by convention in case we have more paths in the future.
             case COLOR_CHANNEL_BRIGHT_SPOT -> {
-                Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
-                return colorChannelBrightSpot(imageROI, distanceTransformImage, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
+                VisionParameters.GrayParameters brightSpotGrayParameters =
+                        getAllianceGrayParameters(pDistanceParameters.colorChannelBrightSpotParameters.redGrayParameters,
+                                pDistanceParameters.colorChannelBrightSpotParameters.blueGrayParameters);
+
+                Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble, brightSpotGrayParameters);
+                return colorChannelBrightSpot(imageROI, distanceTransformImage, outputFilenamePreamble, pDistanceParameters.colorChannelBrightSpotParameters);
             }
-            case COLOR_CHANNEL_CONTOURS -> {
-                Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
-                return colorChannelContours(imageROI, distanceTransformImage, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
+            case COLOR_CHANNEL_PIXEL_COUNT -> {
+                VisionParameters.GrayParameters pixelCountGrayParameters =
+                        getAllianceGrayParameters(pDistanceParameters.colorChannelPixelCountParameters.redGrayParameters,
+                                pDistanceParameters.colorChannelPixelCountParameters.blueGrayParameters);
+
+                Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble, pixelCountGrayParameters);
+                return colorChannelPixelCount(imageROI, distanceTransformImage, outputFilenamePreamble, pDistanceParameters.colorChannelPixelCountParameters);
             }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
         }
     }
 
-    private Mat getDistanceTransformImage(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
-
-        // Use the grayscale and pixel count criteria parameters for the current alliance.
+    //**TODO Asymmetrical ...
+    private VisionParameters.GrayParameters getAllianceGrayParameters(VisionParameters.GrayParameters pRedGrayParameters,
+                                                                      VisionParameters.GrayParameters pBlueGrayParameters) {
         VisionParameters.GrayParameters allianceGrayParameters;
         switch (alliance) {
             case RED -> allianceGrayParameters = pWwatershedDistanceParameters.redGrayParameters;
@@ -76,23 +84,28 @@ public class DistanceTransformRecognition {
             default -> throw new AutonomousRobotException(TAG, "distance transform requires an alliance selection");
         }
 
+        return allianceGrayParameters;
+    }
+
+    private Mat getDistanceTransformImage(Mat pImageROI, String pOutputFilenamePreamble, VisionParameters.GrayParameters pAllianceGrayParameters) {
+
         //##PY Apply a sharpening kernel to the color image.
         Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
 
         // Split the BGR image into its components; see the comments above the method.
-        Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
+        Mat split = splitAndInvertChannels(sharp, alliance, pAllianceGrayParameters, pOutputFilenamePreamble);
 
         // Normalize lighting to a known good value.
-        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
+        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, pAllianceGrayParameters.median_target);
 
         // Follow medium.com and threshold the grayscale (in our case adjusted).
         // Threshold the image: set pixels over the threshold value to white.
         Mat thresholded = new Mat(); // output binary image
         Imgproc.threshold(adjustedGray, thresholded,
-                Math.abs(allianceGrayParameters.threshold_low),    // threshold value
+                Math.abs(pAllianceGrayParameters.threshold_low),    // threshold value
                 255,   // white
                 Imgproc.THRESH_BINARY); // thresholding type
-        RobotLogCommon.v(TAG, "Threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
+        RobotLogCommon.v(TAG, "Threshold values: low " + pAllianceGrayParameters.threshold_low + ", high 255");
 
         String thrFilename = pOutputFilenamePreamble + "_THR.png";
         Imgcodecs.imwrite(thrFilename, thresholded);

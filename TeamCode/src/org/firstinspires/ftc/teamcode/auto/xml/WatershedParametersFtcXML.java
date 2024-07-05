@@ -26,18 +26,14 @@ public class WatershedParametersFtcXML {
     public static final String TAG = WatershedParametersFtcXML.class.getSimpleName();
     private static final String WATERSHED_FTC_FILE_NAME = "WatershedParametersFtc.xml";
 
-    private final Document document;
-    private final String xmlDirectory;
-    private final String xmlFilePath;
     private final WatershedParametersFtc watershedParametersFtc;
 
     public WatershedParametersFtcXML(String pXMLDir) {
         Node watershed_parameters_node;
         try {
-            RobotLogCommon.c(TAG, "Parsing WatershedParametersFtc.xml");
+            RobotLogCommon.c(TAG, "Parsing " + WATERSHED_FTC_FILE_NAME);
 
-            xmlDirectory = pXMLDir;
-            xmlFilePath = pXMLDir + WATERSHED_FTC_FILE_NAME;
+            String xmlFilePath = pXMLDir + WATERSHED_FTC_FILE_NAME;
 
             DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
             dbFactory.setIgnoringComments(true);
@@ -47,7 +43,7 @@ public class WatershedParametersFtcXML {
             // Not supported in Android Studio dbFactory.setXIncludeAware(true);
 
             DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-            document = dBuilder.parse(new File(xmlFilePath));
+            Document document = dBuilder.parse(new File(xmlFilePath));
             XPathFactory xpathFactory = XPathFactory.newInstance();
             XPath xpath = xpathFactory.newXPath();
 
