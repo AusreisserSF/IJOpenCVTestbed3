@@ -4,6 +4,7 @@ import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.TimeStamp;
+import org.firstinspires.ftc.teamcode.common.RecognitionWindowMapping;
 import org.firstinspires.ftc.teamcode.common.RobotConstants;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -31,11 +32,11 @@ public class DistanceTransformRecognition {
     // Use the OpenCV Distance Transform algorithm to detect an object.
 
     // Returns the result of image analysis.
-    //**TODO Use of WatershedParametersFtc is temporary.
     public RobotConstants.RecognitionResults performDistanceTransform(ImageProvider pImageProvider,
                                                                       VisionParameters.ImageParameters pImageParameters,
-                                                                      DistanceTransformRecognitionPath pWatershedRecognitionPath,
-                                                                      DistanceParameters pDistanceParameters) throws InterruptedException {
+                                                                      DistanceTransformRecognitionPath pDistanceRecognitionPath,
+                                                                      DistanceParameters pDistanceParameters,
+                                                                      RecognitionWindowMapping pRecognitionWindowMapping) throws InterruptedException {
         RobotLogCommon.d(TAG, "In DistanceTransformRecognition.performDistanceTransform");
 
         // LocalDateTime requires Android minSdkVersion 26  public Pair<Mat, LocalDateTime> getImage() throws InterruptedException;
@@ -47,10 +48,10 @@ public class DistanceTransformRecognition {
         String fileDate = TimeStamp.getLocalDateTimeStamp(transformImage.second);
         String outputFilenamePreamble = ImageUtils.createOutputFilePreamble(pImageParameters.image_source, testCaseDirectory, fileDate);
         Mat imageROI = ImageUtils.preProcessImage(transformImage.first, outputFilenamePreamble, pImageParameters);
-        RobotLogCommon.d(TAG, "Recognition path " + pWatershedRecognitionPath);
+        RobotLogCommon.d(TAG, "Recognition path " + pDistanceRecognitionPath);
 
         // Adapt the standard example to our environment.
-        switch (pWatershedRecognitionPath) {
+        switch (pDistanceRecognitionPath) {
             // Use a switch by convention in case we have more paths in the future.
             case COLOR_CHANNEL_BRIGHT_SPOT -> {
                         Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble,
