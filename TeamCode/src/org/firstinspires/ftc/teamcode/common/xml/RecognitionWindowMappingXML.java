@@ -24,7 +24,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.EnumMap;
 
-//**TODO Revise comment
+//**TODO Revise comment ...
 // The purpose of this class is to collect information from the
 // FIND_TEAM_PROP element of each of the Autonomous OpModes in
 // RobotConfig.xml associated with a starting position in the
@@ -79,17 +79,17 @@ public class RecognitionWindowMappingXML {
         xpath = xpathFactory.newXPath();
     }
 
-    // Collect spike window data (resolution, ROI, spike windows, etc.)
+    // Collect data (resolution, ROI, recognition window boundaries)
     // for one Autonomous OpMode from RobotAction.xml. May return null
-    // if the OpMode does not contain a <FIND_TEAM_PROP> element.
-    public RecognitionWindowMapping collectRecognitionWindowMapping(RobotConstants.OpMode pOpMode) throws XPathExpressionException {
-        RobotLogCommon.c(TAG, "Collecting Team Prop data for Autonomous OpMode " + pOpMode);
-        return getRecognitionWindowMapping(pOpMode);
+    // if the OpMode does not contain the requested action.
+    public RecognitionWindowMapping collectRecognitionWindowMapping(RobotConstants.OpMode pOpMode, String pAction) throws XPathExpressionException {
+        RobotLogCommon.c(TAG, "Collecting recognition window data for Autonomous OpMode " + pOpMode + " and action " + pAction);
+        return getRecognitionWindowMapping(pOpMode, pAction);
     }
 
     // Collect spike window data (resolution, ROI, spike windows, etc.)
     // for all Autonomous competition OpModes from RobotAction.xml.
-    public EnumMap<RobotConstants.OpMode, RecognitionWindowMapping> collectRecognitionWindowMapping() throws XPathExpressionException {
+    public EnumMap<RobotConstants.OpMode, RecognitionWindowMapping> collectRecognitionWindowMapping(String pAction) throws XPathExpressionException {
         EnumMap<RobotConstants.OpMode, RecognitionWindowMapping> recognitionWindowMapping =
                 new EnumMap<>(RobotConstants.OpMode.class);
 
@@ -101,8 +101,8 @@ public class RecognitionWindowMappingXML {
         for (RobotConstants.OpMode oneOpMode : allOpModes) {
             if (oneOpMode.getOpModeType() == RobotConstants.OpMode.OpModeType.COMPETITION ||
                     oneOpMode.getOpModeType() == RobotConstants.OpMode.OpModeType.AUTO_TEST) {
-                RobotLogCommon.c(TAG, "Collecting Team Prop data for Autonomous OpMode " + oneOpMode);
-                recognitionWindowDataOneOpMode = getRecognitionWindowMapping(oneOpMode);
+                RobotLogCommon.c(TAG, "Collecting recognition window data for Autonomous OpMode " + oneOpMode + " and action " + pAction);
+                recognitionWindowDataOneOpMode = getRecognitionWindowMapping(oneOpMode, pAction);
                 if (recognitionWindowDataOneOpMode != null)
                     recognitionWindowMapping.put(oneOpMode, recognitionWindowDataOneOpMode);
             }
@@ -113,25 +113,24 @@ public class RecognitionWindowMappingXML {
 
     // Find the requested opMode in the RobotAction.xml file.
     // Package and return all data associated with the
-    // FIND_TEAM_PROP element under the OpMode.
+    // requested action under the OpMode.
     private RecognitionWindowMapping getRecognitionWindowMapping(RobotConstants.OpMode pOpMode,
                                                                  String pAction) throws XPathExpressionException {
         EnumMap<RobotConstants.RecognitionWindow, Pair<Rect, RobotConstants.ObjectLocation>> recognitionWindows =
                 new EnumMap<>(RobotConstants.RecognitionWindow.class);
 
-        // actions/[skip]DISTANCE/distance_recognition/[skip]recognition_path/recognition_window
-        // Use XPath to locate the desired OpMode and its child element FIND_TEAM_PROP.
-        String findTeamPropPath = "/RobotAction/OpMode[@id=" + "'" + pOpMode + "']" + "/actions/" + pAction;
-        Node find_team_propNode = (Node) xpath.evaluate(findTeamPropPath, document, XPathConstants.NODE);
-        if (find_team_propNode == null) {
-            RobotLogCommon.d(TAG, "No path to " + pOpMode + pAction);
+        // Use XPath to locate the desired OpMode and its child action element.
+        String actionPath = "/RobotAction/OpMode[@id=" + "'" + pOpMode + "']" + "/actions/" + pAction;
+        Node action_node = (Node) xpath.evaluate(actionPath, document, XPathConstants.NODE);
+        if (action_node == null) {
+            RobotLogCommon.d(TAG, "No path to " + pOpMode + "/" + pAction);
             return null;
         }
 
-        RobotLogCommon.c(TAG, "Extracting data from RobotAction.xml for " + findTeamPropPath);
+        RobotLogCommon.c(TAG, "Extracting data from RobotAction.xml for " + actionPath);
 
         // The next element in the XML is required: <image_parameters>
-        Node image_node = find_team_propNode.getFirstChild();
+        Node image_node = action_node.getFirstChild();
         image_node = XMLUtils.getNextElement(image_node);
         if ((image_node == null) || !image_node.getNodeName().equals("image_parameters"))
             throw new AutonomousRobotException(TAG, "Element 'image_parameters' not found");
@@ -195,12 +194,12 @@ public class RecognitionWindowMappingXML {
             throw new AutonomousRobotException(TAG, "Element 'recognition_window/right' not found");
 
         // Parse the <object_location> element.
-        Node right_prop_node = right_node.getFirstChild();
-        right_prop_node = XMLUtils.getNextElement(right_prop_node);
-        if ((right_prop_node == null) || !right_prop_node.getNodeName().equals("object_location") || right_prop_node.getTextContent().isEmpty())
+        Node right_object_node = right_node.getFirstChild();
+        right_object_node = XMLUtils.getNextElement(right_object_node);
+        if ((right_object_node == null) || !right_object_node.getNodeName().equals("object_location") || right_object_node.getTextContent().isEmpty())
             throw new AutonomousRobotException(TAG, "Element 'recognition_window/right/object_location' not found");
 
-        String rightObjectLocationText = right_prop_node.getTextContent().toUpperCase();
+        String rightObjectLocationText = right_object_node.getTextContent().toUpperCase();
         RobotConstants.ObjectLocation rightObjectLocation =
                 RobotConstants.ObjectLocation.valueOf(rightObjectLocationText);
 
