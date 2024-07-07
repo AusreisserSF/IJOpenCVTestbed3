@@ -246,7 +246,7 @@ public class RecognitionDispatcher extends Application {
 
                 // Perform image recognition.
                 // Get the recognition path from the XML file.
-                String recognitionPathString = actionXPath.getRequiredText("watershed_recognition/recognition_path");
+                String recognitionPathString = actionXPath.getRequiredText("distance_recognition/recognition_path");
                 DistanceTransformRecognition.DistanceTransformRecognitionPath distanceRecognitionPath =
                         DistanceTransformRecognition.DistanceTransformRecognitionPath.valueOf(recognitionPathString.toUpperCase());
 
