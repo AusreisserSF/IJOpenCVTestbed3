@@ -1,0 +1,39 @@
+<RobotAction>
+    <OpMode id="TEST">
+        <parameters>
+            <log_level>v</log_level>
+        </parameters>
+        <actions>
+            <DISTANCE>
+                <image_parameters>
+                    <image_source>front_webcam_03090758_45758_IMG.png</image_source>
+                     <resolution>
+                        <width>640</width>
+                        <height>480</height>
+                    </resolution>
+                    <image_roi>
+                        <x>48</x>
+                        <y>148</y>
+                        <width>486</width>
+                        <height>250</height>
+                    </image_roi>
+                </image_parameters>
+                <distance_recognition>
+                    <recognition_path>color_channel_pixel_count</recognition_path>
+                    <recognition_window>
+                        <left>
+                            <width>312</width>
+                            <object_location>CENTER</object_location>
+                        </left>
+                        <right>
+                            <object_location>RIGHT</object_location>
+                        </right>
+                        <window_npos>
+                            <object_location>LEFT</object_location>
+                        </window_npos>
+                    </recognition_window>
+                </distance_recognition>
+            </DISTANCE>
+        </actions>
+    </OpMode>
+</RobotAction>

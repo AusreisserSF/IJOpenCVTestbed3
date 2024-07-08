@@ -187,8 +187,8 @@ public class DistanceTransformRecognition {
 
         // Because the distance image has been morphologically opened
         // we should threshold a second time.
-        Mat thresholded = new Mat();
-        Imgproc.threshold(pDistanceImage, thresholded, allianceThresholdLow, 255, Imgproc.THRESH_BINARY);
+        Mat thresholded = new Mat(); //**TODO May need a different threshold value
+        Imgproc.threshold(pDistanceImage, thresholded, allianceThresholdLow / 2, 255, Imgproc.THRESH_BINARY);
 
         int nonZeroCount = Core.countNonZero(thresholded);
         RobotLogCommon.d(TAG, "White pixel count " + nonZeroCount);

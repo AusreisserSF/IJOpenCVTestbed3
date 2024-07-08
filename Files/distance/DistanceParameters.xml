@@ -1,0 +1,38 @@
+<distance_parameters>
+ <color_channel_bright_spot>
+    <RED>
+      <gray_parameters>
+        <median_target>150</median_target>
+        <threshold_low>175</threshold_low>
+      </gray_parameters>
+    </RED>
+    <BLUE>
+      <gray_parameters>
+        <median_target>150</median_target>
+        <threshold_low>200</threshold_low>
+      </gray_parameters>
+    </BLUE>
+  </color_channel_bright_spot>
+
+  <color_channel_pixel_count>
+    <RED>
+      <gray_parameters>
+        <median_target>150</median_target>
+        <threshold_low>175</threshold_low>
+      </gray_parameters>
+      <criteria>
+        <min_white_pixel_count>1000</min_white_pixel_count>
+      </criteria>
+    </RED>
+    <BLUE>
+      <gray_parameters>
+        <median_target>150</median_target>
+        <threshold_low>200</threshold_low>
+      </gray_parameters>
+      <criteria>
+        <min_white_pixel_count>1000</min_white_pixel_count>
+      </criteria>
+    </BLUE>
+  </color_channel_pixel_count>
+
+</distance_parameters>
