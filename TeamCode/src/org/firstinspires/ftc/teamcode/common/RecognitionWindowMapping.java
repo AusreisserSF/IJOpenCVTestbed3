@@ -7,6 +7,7 @@ import org.opencv.core.Rect;
 import java.util.EnumMap;
 
 public class RecognitionWindowMapping {
+    //**TODO Are you sure you need this here? If not, then the only thing left is the EnumMap.
     public final VisionParameters.ImageParameters imageParameters;
     public final EnumMap<RobotConstants.RecognitionWindow, Pair<Rect, RobotConstants.ObjectLocation>> recognitionWindows;
 

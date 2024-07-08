@@ -54,7 +54,7 @@ public class DistanceTransformRecognition {
         switch (pDistanceRecognitionPath) {
             // Use a switch by convention in case we have more paths in the future.
             case COLOR_CHANNEL_BRIGHT_SPOT -> {
-                        Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble,
+                Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble,
                         pDistanceParameters.colorChannelBrightSpotParameters.redGrayParameters,
                         pDistanceParameters.colorChannelBrightSpotParameters.blueGrayParameters);
                 return colorChannelBrightSpot(imageROI, distanceTransformImage, outputFilenamePreamble,
@@ -65,7 +65,8 @@ public class DistanceTransformRecognition {
                         pDistanceParameters.colorChannelPixelCountParameters.redGrayParameters,
                         pDistanceParameters.colorChannelPixelCountParameters.blueGrayParameters);
                 return colorChannelPixelCount(imageROI, distanceTransformImage, outputFilenamePreamble,
-                        pDistanceParameters.colorChannelPixelCountParameters);
+                        pDistanceParameters.colorChannelPixelCountParameters,
+                        pRecognitionWindowMapping);
             }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
         }
@@ -133,6 +134,7 @@ public class DistanceTransformRecognition {
         return dist_8u;
     }
 
+    //**TODO Also needs RecognitionWindowMapping ...
     private RobotConstants.RecognitionResults colorChannelBrightSpot(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
                                                                      DistanceParameters.ColorChannelBrightSpotParameters pBrightSpotParameters) {
@@ -141,8 +143,7 @@ public class DistanceTransformRecognition {
         switch (alliance) {
             case RED -> allianceGrayParameters = pBrightSpotParameters.redGrayParameters;
             case BLUE -> allianceGrayParameters = pBrightSpotParameters.blueGrayParameters;
-            default ->
-                    throw new AutonomousRobotException(TAG, "findBrightSpot requires an alliance selection");
+            default -> throw new AutonomousRobotException(TAG, "findBrightSpot requires an alliance selection");
         }
 
         Core.MinMaxLocResult brightResult = Core.minMaxLoc(pDistanceImage);
@@ -164,22 +165,30 @@ public class DistanceTransformRecognition {
     }
 
     private RobotConstants.RecognitionResults colorChannelPixelCount(Mat pImageROI, Mat pDistanceImage,
-                                                                   String pOutputFilenamePreamble,
-                                                                   DistanceParameters.ColorChannelPixelCountParameters pPixelCountParameters) {
+                                                                     String pOutputFilenamePreamble,
+                                                                     DistanceParameters.ColorChannelPixelCountParameters pPixelCountParameters,
+                                                                     RecognitionWindowMapping pRecognitionWindowMapping) {
 
-        // Use the pixel count criteria parameters for the current alliance.
+        // Use the threshold and pixel count criteria parameters for the current alliance.
+        int allianceThresholdLow;
         int allianceMinWhitePixelCount;
         switch (alliance) {
-            case RED -> allianceMinWhitePixelCount = pPixelCountParameters.redMinWhitePixelCount;
-            case BLUE -> allianceMinWhitePixelCount = pPixelCountParameters.blueMinWhitePixelCount;
+            case RED -> {
+                allianceThresholdLow = pPixelCountParameters.redGrayParameters.threshold_low;
+                allianceMinWhitePixelCount = pPixelCountParameters.redMinWhitePixelCount;
+            }
+            case BLUE -> {
+                allianceThresholdLow = pPixelCountParameters.blueGrayParameters.threshold_low;
+                allianceMinWhitePixelCount = pPixelCountParameters.blueMinWhitePixelCount;
+            }
             default ->
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
 
-        //**TODO Because the distance image has been morphologically opened
-        // we should probably threshold a second time.
+        // Because the distance image has been morphologically opened
+        // we should threshold a second time.
         Mat thresholded = new Mat();
-        Imgproc.threshold(pDistanceImage, thresholded, 100, 255, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(pDistanceImage, thresholded, allianceThresholdLow, 255, Imgproc.THRESH_BINARY);
 
         int nonZeroCount = Core.countNonZero(thresholded);
         RobotLogCommon.d(TAG, "White pixel count " + nonZeroCount);
@@ -187,53 +196,49 @@ public class DistanceTransformRecognition {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_PXC.png", thresholded);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_PXC.png");
 
-        //**TODO Need generic target window boundaries ...
-        /*
-        // Get the white pixel count for both the left and right
-        // spike windows.
-        Pair<Rect, RobotConstantsCenterStage.TeamPropLocation> leftSpikeWindow =
-                spikeWindows.get(RobotConstantsCenterStage.SpikeLocationWindow.LEFT);
-        Mat leftSpikeWindowBoundary = thresholded.submat(leftSpikeWindow.first);
-        int leftNonZeroCount = Core.countNonZero(leftSpikeWindowBoundary);
-        RobotLogCommon.d(TAG, "Left spike window white pixel count " + leftNonZeroCount);
+        // Get the white pixel count for both the left and right recognition windows.
+        Pair<Rect, RobotConstants.ObjectLocation> leftWindowData =
+                pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.LEFT);
+        Mat leftWindowBoundary = thresholded.submat(leftWindowData.first);
+        int leftNonZeroCount = Core.countNonZero(leftWindowBoundary);
+        RobotLogCommon.d(TAG, "Left recognition window white pixel count " + leftNonZeroCount);
 
-        Pair<Rect, RobotConstantsCenterStage.TeamPropLocation> rightSpikeWindow =
-                spikeWindows.get(RobotConstantsCenterStage.SpikeLocationWindow.RIGHT);
-        Mat rightSpikeWindowBoundary = thresholded.submat(rightSpikeWindow.first);
-        int rightNonZeroCount = Core.countNonZero(rightSpikeWindowBoundary);
-        RobotLogCommon.d(TAG, "Right spike window white pixel count " + rightNonZeroCount);
+        Pair<Rect, RobotConstants.ObjectLocation> rightWindowData =
+                pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.RIGHT);
+        Mat rightWindowBoundary = thresholded.submat(rightWindowData.first);
+        int rightNonZeroCount = Core.countNonZero(rightWindowBoundary);
+        RobotLogCommon.d(TAG, "Right recognition window white pixel count " + rightNonZeroCount);
 
         // If both counts are less than the minimum then we infer that
-        // the Team Prop is in the third (non-visible) spike window.
+        // the object is in the third (non-visible) recognition window.
         if (leftNonZeroCount < allianceMinWhitePixelCount &&
                 rightNonZeroCount < allianceMinWhitePixelCount) {
-            Pair<Rect, RobotConstantsCenterStage.TeamPropLocation> nposWindow = spikeWindows.get(RobotConstantsCenterStage.SpikeLocationWindow.WINDOW_NPOS);
-            RobotLogCommon.d(TAG, "White pixel counts for the left and right spike windows were under the threshold");
-            SpikeWindowUtils.drawSpikeWindows(pImageROI.clone(), spikeWindows, pOutputFilenamePreamble);
-            return new TeamPropReturn(RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL, nposWindow.second);
+            Pair<Rect, RobotConstants.ObjectLocation> nposWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.WINDOW_NPOS);
+            RobotLogCommon.d(TAG, "White pixel counts for the left and right recognition windows were under the threshold");
+            RecognitionWindowUtils.drawRecognitionWindows(pImageROI.clone(), pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
+            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
         }
 
-        // Compare the white pixel count in the left and right spike
+        // Compare the white pixel count in the left and right recognition
         // windows against each other.
         Mat pixelCountOut = pImageROI.clone();
         if (leftNonZeroCount >= rightNonZeroCount) {
-            Point leftSpikeWindowCentroid = new Point((leftSpikeWindow.first.x + leftSpikeWindow.first.width) / 2.0,
-                    (leftSpikeWindow.first.y + leftSpikeWindow.first.height) / 2.0);
-            RobotLogCommon.d(TAG, "Center of left spike window " + leftSpikeWindowCentroid);
+            Point leftWindowCentroid = new Point((leftWindowData.first.x + leftWindowData.first.width) / 2.0,
+                    (leftWindowData.first.y + leftWindowData.first.height) / 2.0);
+            RobotLogCommon.d(TAG, "Center of left recognition window " + leftWindowCentroid);
 
-            Imgproc.circle(pixelCountOut, leftSpikeWindowCentroid, 10, new Scalar(0, 255, 0));
-            SpikeWindowUtils.drawSpikeWindows(pixelCountOut, spikeWindows, pOutputFilenamePreamble);
-            return new TeamPropReturn(RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL, leftSpikeWindow.second);
+            Imgproc.circle(pixelCountOut, leftWindowCentroid, 10, new Scalar(0, 255, 0));
+            RecognitionWindowUtils.drawRecognitionWindows(pixelCountOut, pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
+            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
         }
 
-        // Go with the right spike window.
-        Point rightSpikeWindowCentroid = new Point(rightSpikeWindow.first.x + (rightSpikeWindow.first.width / 2.0),
-                (rightSpikeWindow.first.y + rightSpikeWindow.first.height) / 2.0);
-        RobotLogCommon.d(TAG, "Center of right spike window " + rightSpikeWindowCentroid);
+        // Go with the right recognition window.
+        Point rightWindowCentroid = new Point(rightWindowData.first.x + (rightWindowData.first.width / 2.0),
+                (rightWindowData.first.y + rightWindowData.first.height) / 2.0);
+        RobotLogCommon.d(TAG, "Center of right recognition window " + rightWindowCentroid);
 
-        Imgproc.circle(pixelCountOut, rightSpikeWindowCentroid, 10, new Scalar(0, 255, 0));
-        SpikeWindowUtils.drawSpikeWindows(pixelCountOut, spikeWindows, pOutputFilenamePreamble);
-         */
+        Imgproc.circle(pixelCountOut, rightWindowCentroid, 10, new Scalar(0, 255, 0));
+        RecognitionWindowUtils.drawRecognitionWindows(pixelCountOut, pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }

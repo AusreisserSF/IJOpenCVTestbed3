@@ -19,6 +19,8 @@ import org.firstinspires.ftc.teamcode.auto.vision.*;
 import org.firstinspires.ftc.teamcode.auto.xml.GoldCubeParametersXML;
 import org.firstinspires.ftc.teamcode.auto.xml.RobotActionXML;
 import org.firstinspires.ftc.teamcode.auto.xml.WatershedParametersFtcXML;
+import org.firstinspires.ftc.teamcode.common.RecognitionWindowMapping;
+import org.firstinspires.ftc.teamcode.common.xml.RecognitionWindowMappingXML;
 import org.firstinspires.ftc.teamcode.common.RobotConstants;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
@@ -103,7 +105,8 @@ public class RecognitionDispatcher extends Application {
         // is a single OpMode TEST. Under this OpMode the <actions> element must
         // contain a single child element, whose name is that of the action
         // (test case).
-        RobotActionXML robotActionXML = new RobotActionXML(fullTestCaseDir + RobotConstants.ACTION_FILENAME);
+        String robotActionFilename = fullTestCaseDir + RobotConstants.ACTION_FILENAME;
+        RobotActionXML robotActionXML = new RobotActionXML(robotActionFilename);
         RobotActionXML.RobotActionData actionData = robotActionXML.getOpModeData("TEST");
         if (actionData.actionElements.size() != 1)
             throw new AutonomousRobotException(TAG, "TEST OpMode must contain a single action");
@@ -233,18 +236,17 @@ public class RecognitionDispatcher extends Application {
                 DistanceParameters distanceParameters = distanceParametersXML.getDistanceParameters();
 
                 // Get the <image_parameters> for the playing cards from the RobotAction XML file.
-                VisionParameters.ImageParameters watershedImageParameters =
+                VisionParameters.ImageParameters distanceImageParameters =
                         robotActionXML.getImageParametersFromXPath(actionElement, "image_parameters");
 
                 // Make sure that this tester is reading the image from a file.
-                if (!(watershedImageParameters.image_source.endsWith(".png") ||
-                        watershedImageParameters.image_source.endsWith(".jpg")))
+                if (!(distanceImageParameters.image_source.endsWith(".png") ||
+                        distanceImageParameters.image_source.endsWith(".jpg")))
                     throw new AutonomousRobotException(TAG, "Invalid image file name");
 
-                imageFilename = watershedImageParameters.image_source;
-                ImageProvider fileImage = new FileImage(fullTestCaseDir + watershedImageParameters.image_source);
+                imageFilename = distanceImageParameters.image_source;
+                ImageProvider fileImage = new FileImage(fullTestCaseDir + distanceImageParameters.image_source);
 
-                // Perform image recognition.
                 // Get the recognition path from the XML file.
                 String recognitionPathString = actionXPath.getRequiredText("distance_recognition/recognition_path");
                 DistanceTransformRecognition.DistanceTransformRecognitionPath distanceRecognitionPath =
@@ -252,11 +254,18 @@ public class RecognitionDispatcher extends Application {
 
                 RobotLogCommon.d(TAG, "Recognition path " + distanceRecognitionPath);
 
+                RecognitionWindowMappingXML recognitionWindowMappingXML = new RecognitionWindowMappingXML(robotActionFilename);
+                RecognitionWindowMapping opModeRecognitionWindowMapping =
+                        recognitionWindowMappingXML.collectRecognitionWindowMapping(RobotConstants.OpMode.TEST, actionName);
+
+                if (opModeRecognitionWindowMapping == null)
+                    throw new AutonomousRobotException(TAG, "Element 'FIND_TEAM_PROP' not found under OpMode TEST");
+
                 // Perform image recognition.
                 DistanceTransformRecognition distanceTransformRecognition = new DistanceTransformRecognition(alliance, fullTestCaseDir);
                 RobotConstants.RecognitionResults distanceReturn =
-                        distanceTransformRecognition.performDistanceTransform(fileImage, watershedImageParameters,
-                                distanceRecognitionPath, distanceParameters);
+                        distanceTransformRecognition.performDistanceTransform(fileImage, distanceImageParameters,
+                                distanceRecognitionPath, distanceParameters, opModeRecognitionWindowMapping);
 
                 displayResults(fullTestCaseDir + imageFilename,
                         buildResultsOnlyDisplayText(imageFilename, distanceReturn),

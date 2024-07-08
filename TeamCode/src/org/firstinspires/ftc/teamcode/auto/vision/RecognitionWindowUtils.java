@@ -20,8 +20,9 @@ public class RecognitionWindowUtils {
 
     private static final String TAG = RecognitionWindowUtils.class.getSimpleName();
 
-    // Look through the left and right recognition windows and determine which the
-    // the selected is in - or neither. Also draw the boundaries of the windows.
+    // Look through the left and right recognition windows and determine which
+    // the selected object is in - or neither. Also draw the boundaries of the
+    // windows.
     public RobotConstants.RecognitionResults lookThroughWindows(Point pCenterOfObject, Mat pRecognitionObjectOut, String pOutputFilenamePreamble,
             EnumMap<RobotConstants.RecognitionWindow, Pair<Rect, RobotConstants.ObjectLocation>> pRecognitionWindows) {
         Pair<Rect, RobotConstants.ObjectLocation> leftWindowData = pRecognitionWindows.get(RobotConstants.RecognitionWindow.LEFT);
@@ -52,8 +53,7 @@ public class RecognitionWindowUtils {
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
-    // Returns the ROI from the full image with the recognition windows
-    // drawn in.
+    // Returns the ROI from the full image with the recognition windows drawn in.
     public static Mat overlayRecognitionWindows(ImageProvider pImageProvider,
                                             String pImageFilename,
                                             RecognitionWindowMapping pRecognitionWindowMapping) throws InterruptedException {

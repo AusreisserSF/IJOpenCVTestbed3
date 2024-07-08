@@ -144,7 +144,7 @@ public class RecognitionWindowMappingXML {
             throw new AutonomousRobotException(TAG, "Recognition element not found");
 
         // Drop down to the <recognition_path> element.
-        Node path_node = recognition_node.getNextSibling();
+        Node path_node = recognition_node.getFirstChild();
         path_node = XMLUtils.getNextElement(path_node);
         if ((path_node == null) || !path_node.getNodeName().equals("recognition_path") || path_node.getTextContent().isEmpty())
             throw new AutonomousRobotException(TAG, "Element 'recognition_path' not found");
@@ -152,7 +152,7 @@ public class RecognitionWindowMappingXML {
         // Point to the <recognition_window> element.
         Node window_node = path_node.getNextSibling();
         window_node = XMLUtils.getNextElement(window_node);
-        if ((window_node == null) || !path_node.getNodeName().equals("recognition_window") || window_node.getTextContent().isEmpty())
+        if ((window_node == null) || !window_node.getNodeName().equals("recognition_window") || window_node.getTextContent().isEmpty())
             throw new AutonomousRobotException(TAG, "Element 'recognition_window' not found");
 
         // Drop down the <left> element.
