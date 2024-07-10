@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.common;
+package org.firstinspires.ftc.teamcode.auto;
 
 public class RobotConstants {
     public static final String ACTION_FILENAME = "RobotAction.xml";

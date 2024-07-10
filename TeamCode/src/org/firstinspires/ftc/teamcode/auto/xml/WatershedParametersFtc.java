@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.auto.vision;
+package org.firstinspires.ftc.teamcode.auto.xml;
 
 // Input parameters to OpenCV Watershed.
 public class WatershedParametersFtc {

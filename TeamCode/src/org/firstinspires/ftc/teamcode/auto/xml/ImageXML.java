@@ -1,10 +1,9 @@
 // Port of XMLCommon.cpp
-package org.firstinspires.ftc.teamcode.common.xml;
+package org.firstinspires.ftc.teamcode.auto.xml;
 
 import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.xml.XMLUtils;
-import org.firstinspires.ftc.teamcode.auto.vision.VisionParameters;
 import org.opencv.core.Rect;
 import org.w3c.dom.Node;
 

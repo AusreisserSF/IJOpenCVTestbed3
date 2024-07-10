@@ -1,9 +1,8 @@
-package org.firstinspires.ftc.teamcode.auto.vision;
+package org.firstinspires.ftc.teamcode.auto.xml;
 
 import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.xml.XMLUtils;
-import org.firstinspires.ftc.teamcode.common.xml.ImageXML;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.xml.sax.SAXException;

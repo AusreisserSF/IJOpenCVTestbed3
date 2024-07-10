@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.auto.vision;
+package org.firstinspires.ftc.teamcode.auto.xml;
 
 // Input parameters to DistanceTransform recognition.
 public class DistanceParameters {

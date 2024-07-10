@@ -1,12 +1,10 @@
-package org.firstinspires.ftc.teamcode.common.xml;
+package org.firstinspires.ftc.teamcode.auto.xml;
 
 import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.xml.XMLUtils;
-import org.firstinspires.ftc.teamcode.auto.vision.VisionParameters;
-import org.firstinspires.ftc.teamcode.common.RecognitionWindowMapping;
-import org.firstinspires.ftc.teamcode.common.RobotConstants;
+import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 
 import org.opencv.core.Rect;
 import org.w3c.dom.Document;

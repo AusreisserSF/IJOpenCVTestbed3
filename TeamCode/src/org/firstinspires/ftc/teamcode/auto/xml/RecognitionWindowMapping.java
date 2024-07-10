@@ -1,13 +1,15 @@
-package org.firstinspires.ftc.teamcode.common;
+package org.firstinspires.ftc.teamcode.auto.xml;
 
 import org.firstinspires.ftc.ftcdevcommon.Pair;
-import org.firstinspires.ftc.teamcode.auto.vision.VisionParameters;
+import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 import org.opencv.core.Rect;
 
 import java.util.EnumMap;
 
 public class RecognitionWindowMapping {
-    //**TODO Are you sure you need this here? If not, then the only thing left is the EnumMap.
+    //## ImageParameters are not used in IntelliJ but are used in Android Studio,
+    // e.g. FtcCenterStage SpikeWindowRendering, which shows the spike windows on
+    // the Driver Station but which does not have direct access to RobotAction.xml.
     public final VisionParameters.ImageParameters imageParameters;
     public final EnumMap<RobotConstants.RecognitionWindow, Pair<Rect, RobotConstants.ObjectLocation>> recognitionWindows;
 

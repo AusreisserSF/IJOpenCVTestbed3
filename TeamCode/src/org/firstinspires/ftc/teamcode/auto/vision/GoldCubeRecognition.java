@@ -4,7 +4,9 @@ import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.TimeStamp;
-import org.firstinspires.ftc.teamcode.common.RobotConstants;
+import org.firstinspires.ftc.teamcode.auto.xml.GoldCubeParameters;
+import org.firstinspires.ftc.teamcode.auto.RobotConstants;
+import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -37,8 +39,8 @@ public class GoldCubeRecognition {
 
     // Returns the result of image analysis.
      public RobotConstants.RecognitionResults recognizeGoldCubeWebcam(ImageProvider pImageProvider,
-                                                                     VisionParameters.ImageParameters pImageParameters,
-                                                                     GoldCubeParameters pGoldCubeParameters, GoldCubeRecognitionPath pGoldCubeRecognitionPath) throws InterruptedException {
+                                                                      VisionParameters.ImageParameters pImageParameters,
+                                                                      GoldCubeParameters pGoldCubeParameters, GoldCubeRecognitionPath pGoldCubeRecognitionPath) throws InterruptedException {
 
         RobotLogCommon.d(TAG, "In GoldCubeRecognition.recognizeGoldCubeWebcam");
 

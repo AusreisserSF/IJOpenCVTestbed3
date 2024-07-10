@@ -5,6 +5,7 @@ package org.firstinspires.ftc.teamcode.auto.vision;
 import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
+import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
