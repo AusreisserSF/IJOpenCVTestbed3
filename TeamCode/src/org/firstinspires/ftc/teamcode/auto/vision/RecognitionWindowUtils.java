@@ -23,7 +23,7 @@ public class RecognitionWindowUtils {
     // Look through the left and right recognition windows and determine which
     // the selected object is in - or neither. Also draw the boundaries of the
     // windows.
-    public RobotConstants.RecognitionResults lookThroughWindows(Point pCenterOfObject, Mat pRecognitionObjectOut, String pOutputFilenamePreamble,
+    public static RobotConstants.RecognitionResults lookThroughWindows(Point pCenterOfObject, Mat pRecognitionObjectOut, String pOutputFilenamePreamble,
             EnumMap<RobotConstants.RecognitionWindow, Pair<Rect, RobotConstants.ObjectLocation>> pRecognitionWindows) {
         Pair<Rect, RobotConstants.ObjectLocation> leftWindowData = pRecognitionWindows.get(RobotConstants.RecognitionWindow.LEFT);
         Pair<Rect, RobotConstants.ObjectLocation> rightWindowData = pRecognitionWindows.get(RobotConstants.RecognitionWindow.RIGHT);
@@ -54,6 +54,10 @@ public class RecognitionWindowUtils {
     }
 
     // Returns the ROI from the full image with the recognition windows drawn in.
+    //**TODO No usages in FtcCenterStage. One usage IJCenterStageVision:
+    // If the switch --spike_windows is present then its argument
+    // must be the OpMode of an Autonomous starting position and the
+    // switch --image_file must be present.
     public static Mat overlayRecognitionWindows(ImageProvider pImageProvider,
                                             String pImageFilename,
                                             RecognitionWindowMapping pRecognitionWindowMapping) throws InterruptedException {

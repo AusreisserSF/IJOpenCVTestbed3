@@ -58,7 +58,8 @@ public class DistanceTransformRecognition {
                         pDistanceParameters.colorChannelBrightSpotParameters.redGrayParameters,
                         pDistanceParameters.colorChannelBrightSpotParameters.blueGrayParameters);
                 return colorChannelBrightSpot(imageROI, distanceTransformImage, outputFilenamePreamble,
-                        pDistanceParameters.colorChannelBrightSpotParameters);
+                        pDistanceParameters.colorChannelBrightSpotParameters,
+                        pRecognitionWindowMapping);
             }
             case COLOR_CHANNEL_PIXEL_COUNT -> {
                 Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble,
@@ -137,7 +138,8 @@ public class DistanceTransformRecognition {
     //**TODO Also needs RecognitionWindowMapping ...
     private RobotConstants.RecognitionResults colorChannelBrightSpot(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
-                                                                     DistanceParameters.ColorChannelBrightSpotParameters pBrightSpotParameters) {
+                                                                     DistanceParameters.ColorChannelBrightSpotParameters pBrightSpotParameters,
+                                                                     RecognitionWindowMapping pRecognitionWindowMapping) {
 
         VisionParameters.GrayParameters allianceGrayParameters;
         switch (alliance) {
@@ -155,13 +157,15 @@ public class DistanceTransformRecognition {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_BRIGHT.png", brightSpotOut);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BRIGHT.png");
 
-
         // If the bright spot is under the threshold then assume no Team Prop is present.
-        if (brightResult.maxVal < allianceGrayParameters.threshold_low) {
+        //**TODO Need a lower threshold for the distance image.
+        if (brightResult.maxVal < allianceGrayParameters.threshold_low / 2.0) {
             RobotLogCommon.d(TAG, "Bright spot value was under the threshold");
+            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
         }
 
-        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+        return RecognitionWindowUtils.lookThroughWindows(brightResult.maxLoc, brightSpotOut, pOutputFilenamePreamble,
+                pRecognitionWindowMapping.recognitionWindows);
     }
 
     private RobotConstants.RecognitionResults colorChannelPixelCount(Mat pImageROI, Mat pDistanceImage,
@@ -188,7 +192,7 @@ public class DistanceTransformRecognition {
         // Because the distance image has been morphologically opened
         // we should threshold a second time.
         Mat thresholded = new Mat(); //**TODO May need a different threshold value
-        Imgproc.threshold(pDistanceImage, thresholded, allianceThresholdLow / 2, 255, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(pDistanceImage, thresholded, allianceThresholdLow / 2.0, 255, Imgproc.THRESH_BINARY);
 
         int nonZeroCount = Core.countNonZero(thresholded);
         RobotLogCommon.d(TAG, "White pixel count " + nonZeroCount);
