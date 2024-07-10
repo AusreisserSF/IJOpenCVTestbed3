@@ -137,7 +137,6 @@ public class DistanceTransformRecognition {
         return dist_8u;
     }
 
-    //**TODO Also needs RecognitionWindowMapping ...
     private RobotConstants.RecognitionResults colorChannelBrightSpot(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
                                                                      DistanceParameters.ColorChannelBrightSpotParameters pBrightSpotParameters,
@@ -191,8 +190,8 @@ public class DistanceTransformRecognition {
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
 
-        // Because the distance image has been morphologically opened
-        // we should threshold a second time.
+        // Because the distance image has been morphologically opened we need to
+        // threshold a second time.
         Mat thresholded = new Mat(); //**TODO May need a different threshold value
         Imgproc.threshold(pDistanceImage, thresholded, allianceThresholdLow / 2.0, 255, Imgproc.THRESH_BINARY);
 
@@ -221,6 +220,7 @@ public class DistanceTransformRecognition {
                 rightNonZeroCount < allianceMinWhitePixelCount) {
             Pair<Rect, RobotConstants.ObjectLocation> nposWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.WINDOW_NPOS);
             RobotLogCommon.d(TAG, "White pixel counts for the left and right recognition windows were under the threshold");
+            RobotLogCommon.d(TAG, "The object location is " + nposWindowData.second);
             RecognitionWindowUtils.drawRecognitionWindows(pImageROI.clone(), pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
             return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
         }
@@ -232,6 +232,7 @@ public class DistanceTransformRecognition {
             Point leftWindowCentroid = new Point((leftWindowData.first.x + leftWindowData.first.width) / 2.0,
                     (leftWindowData.first.y + leftWindowData.first.height) / 2.0);
             RobotLogCommon.d(TAG, "Center of left recognition window " + leftWindowCentroid);
+            RobotLogCommon.d(TAG, "The object location is " + leftWindowData.second);
 
             Imgproc.circle(pixelCountOut, leftWindowCentroid, 10, new Scalar(0, 255, 0));
             RecognitionWindowUtils.drawRecognitionWindows(pixelCountOut, pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
@@ -241,6 +242,7 @@ public class DistanceTransformRecognition {
         // Go with the right recognition window.
         Point rightWindowCentroid = new Point(rightWindowData.first.x + (rightWindowData.first.width / 2.0),
                 (rightWindowData.first.y + rightWindowData.first.height) / 2.0);
+        RobotLogCommon.d(TAG, "The object location is " + rightWindowData.second);
         RobotLogCommon.d(TAG, "Center of right recognition window " + rightWindowCentroid);
 
         Imgproc.circle(pixelCountOut, rightWindowCentroid, 10, new Scalar(0, 255, 0));
