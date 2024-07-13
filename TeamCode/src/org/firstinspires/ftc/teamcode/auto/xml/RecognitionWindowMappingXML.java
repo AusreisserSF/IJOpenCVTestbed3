@@ -64,6 +64,7 @@ public class RecognitionWindowMappingXML {
         // Android or IntelliJ
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
         dbFactory.setIgnoringComments(true);
+
         //## ONLY works with a validating parser (DTD or schema),
         // which the Android Studio parser is not.
         // dbFactory.setIgnoringElementContentWhitespace(true);
@@ -77,16 +78,20 @@ public class RecognitionWindowMappingXML {
         xpath = xpathFactory.newXPath();
     }
 
+    //**TODO STOPPED HERE 7/13/2024 not quite correct ...
     // Collect data (resolution, ROI, recognition window boundaries)
-    // for one Autonomous OpMode from RobotAction.xml. May return null
-    // if the OpMode does not contain the requested action.
+    // for a selected Autonomous OpMode and a single action under
+    // that OpMode in RobotAction.xml. May return null if the OpMode
+    // is not present in the file or does not contain the requested
+    // action.
     public RecognitionWindowMapping collectRecognitionWindowMapping(RobotConstants.OpMode pOpMode, String pAction) throws XPathExpressionException {
         RobotLogCommon.c(TAG, "Collecting recognition window data for Autonomous OpMode " + pOpMode + " and action " + pAction);
         return getRecognitionWindowMapping(pOpMode, pAction);
     }
 
-    // Collect spike window data (resolution, ROI, spike windows, etc.)
-    // for all Autonomous competition OpModes from RobotAction.xml.
+    // Collect recognition window data (resolution, ROI, spike windows, etc.)
+    // for all Autonomous test or competition OpModes in RobotAction.xml that
+    // also contain the selected action.
     public EnumMap<RobotConstants.OpMode, RecognitionWindowMapping> collectRecognitionWindowMapping(String pAction) throws XPathExpressionException {
         EnumMap<RobotConstants.OpMode, RecognitionWindowMapping> recognitionWindowMapping =
                 new EnumMap<>(RobotConstants.OpMode.class);
