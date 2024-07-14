@@ -159,7 +159,9 @@ public class DistanceTransformRecognition {
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BRIGHT.png");
 
         // If the bright spot is under the threshold then assume no Team Prop is present.
-        //**TODO Need a lower threshold for the distance image.
+        //## We need a lower threshold for the distance image since it has undergone two
+        // morphological openings. Arbitrarily use 1/2 of the low threshold value for the
+        // split channel grayscale.
         if (brightResult.maxVal < allianceGrayParameters.threshold_low / 2.0) {
             RobotLogCommon.d(TAG, "Bright spot value was under the threshold");
             return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
@@ -190,9 +192,10 @@ public class DistanceTransformRecognition {
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
 
-        // Because the distance image has been morphologically opened we need to
-        // threshold a second time.
-        Mat thresholded = new Mat(); //**TODO May need a different threshold value
+        //## We need a lower threshold for the distance image since it has undergone two
+        // morphological openings. Arbitrarily use 1/2 of the low threshold value for the
+        // split channel grayscale.
+        Mat thresholded = new Mat();
         Imgproc.threshold(pDistanceImage, thresholded, allianceThresholdLow / 2.0, 255, Imgproc.THRESH_BINARY);
 
         int nonZeroCount = Core.countNonZero(thresholded);

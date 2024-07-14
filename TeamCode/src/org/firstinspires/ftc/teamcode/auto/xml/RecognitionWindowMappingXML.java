@@ -22,14 +22,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.EnumMap;
 
-//**TODO Revise comment ...
-// The purpose of this class is to collect information from the
-// FIND_TEAM_PROP element of each of the Autonomous OpModes in
-// RobotConfig.xml associated with a starting position in the
-// competition, e.g. BLUE_A2, RED_F4. The collected information
-// can be used to crop webcam images and show spike mark windows
-// in the Driver Station camera stream. Before a match the driver
-// can then adjust the camera alignment.
+//## See comments in RecognitionWindowMapping.java regarding
+// the recognitionWindows EnumMap, which is created here from
+// the <recognition_window> element in the RobotAction.xml.
 public class RecognitionWindowMappingXML {
 
     public static final String TAG = RecognitionWindowMappingXML.class.getSimpleName();
@@ -78,7 +73,6 @@ public class RecognitionWindowMappingXML {
         xpath = xpathFactory.newXPath();
     }
 
-    //**TODO STOPPED HERE 7/13/2024 not quite correct ...
     // Collect data (resolution, ROI, recognition window boundaries)
     // for a selected Autonomous OpMode and a single action under
     // that OpMode in RobotAction.xml. May return null if the OpMode
@@ -89,9 +83,12 @@ public class RecognitionWindowMappingXML {
         return getRecognitionWindowMapping(pOpMode, pAction);
     }
 
-    // Collect recognition window data (resolution, ROI, spike windows, etc.)
-    // for all Autonomous test or competition OpModes in RobotAction.xml that
-    // also contain the selected action.
+    // Collect recognition window data (resolution, ROI, recognition window
+    // boundaries) for all Autonomous test or competition OpModes in
+    // RobotAction.xml that also contain the selected action. This method
+    // may return an empty EnumMap if no test or competition OpModes are
+    // present in the file or the OpMode does not contain the requested
+    // action.
     public EnumMap<RobotConstants.OpMode, RecognitionWindowMapping> collectRecognitionWindowMapping(String pAction) throws XPathExpressionException {
         EnumMap<RobotConstants.OpMode, RecognitionWindowMapping> recognitionWindowMapping =
                 new EnumMap<>(RobotConstants.OpMode.class);

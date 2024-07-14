@@ -39,13 +39,13 @@ public class WatershedRecognitionFtc {
     // a Python solution at
     // https://medium.com/@jaskaranbhatia/exploring-image-segmentation-techniques-watershed-algorithm-using-opencv-9f73d2bc7c5a
 
-    //**TODO From the testing so far it's not at all clear that the Watershed technique
+    //##From the testing so far it's not at all clear that the Watershed technique
     // will be useful in FTC; the watershed output of the blue team prop in CenterStage
     // merges the team prop and the blue spike - but the output of the distanceTransform
     // does look promising - it eliminates the blue spike. And it's not clear how you would
     // actually use the final output of the watershed in FTC.
 
-    //**TODO For the sake of completeness keep going with the watershed. Introduce a
+    //##For the sake of completeness keep going with the watershed. Introduce a
     // third reference: the OpenCV 3 Computer Vision Application Programming Cookbook,
     // Third Edition, by Robert Laganiere; pg. 162. Note how he uses erosion to create
     // the sure foreground and dilation to create the sure background, how he adds
@@ -84,16 +84,9 @@ public class WatershedRecognitionFtc {
 
         // Use the grayscale and pixel count criteria parameters for the current alliance.
         VisionParameters.GrayParameters allianceGrayParameters;
-        int allianceMinWhitePixelCount;
         switch (alliance) {
-            case RED -> {
-                allianceGrayParameters = pWwatershedDistanceParameters.redGrayParameters;
-                allianceMinWhitePixelCount = pWwatershedDistanceParameters.redMinWhitePixelCount;
-            }
-            case BLUE -> {
-                allianceGrayParameters = pWwatershedDistanceParameters.blueGrayParameters;
-                allianceMinWhitePixelCount = pWwatershedDistanceParameters.blueMinWhitePixelCount;
-            }
+            case RED -> allianceGrayParameters = pWwatershedDistanceParameters.redGrayParameters;
+            case BLUE -> allianceGrayParameters = pWwatershedDistanceParameters.blueGrayParameters;
             default ->
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
@@ -182,7 +175,7 @@ public class WatershedRecognitionFtc {
         //# sure background area
         //        sure_bg = cv2.dilate(opening, kernel, iterations=3)
         Mat sure_bg = new Mat();
-        Imgproc.dilate(opening, sure_bg, kernel,  new Point(-1, -1), 3);
+        Imgproc.dilate(opening, sure_bg, kernel, new Point(-1, -1), 3);
 
         String bgFilename = pOutputFilenamePreamble + "_BG.png";
         Imgcodecs.imwrite(bgFilename, sure_bg);
@@ -335,7 +328,7 @@ public class WatershedRecognitionFtc {
         unknown.get(0, 0, unknownData);
         markers.get(0, 0, markerData);
         int sharedIndex;
-        for (int i = 0; i <numMarkerRows; i++) {
+        for (int i = 0; i < numMarkerRows; i++) {
             for (int j = 0; j < numMarkerCols; j++) {
                 sharedIndex = (i * numMarkerCols) + j;
                 if ((unknownData[sharedIndex] & 0xff) == 255)

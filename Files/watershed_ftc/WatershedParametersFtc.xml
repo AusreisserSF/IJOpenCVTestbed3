@@ -5,18 +5,12 @@
         <median_target>150</median_target>
         <threshold_low>175</threshold_low>
       </gray_parameters>
-      <criteria>
-        <min_white_pixel_count>4000</min_white_pixel_count>
-      </criteria>
     </RED>
     <BLUE>
       <gray_parameters>
         <median_target>150</median_target>
         <threshold_low>200</threshold_low>
       </gray_parameters>
-      <criteria>
-        <min_white_pixel_count>4500</min_white_pixel_count>
-      </criteria>
     </BLUE>
   </watershed_distance>
 

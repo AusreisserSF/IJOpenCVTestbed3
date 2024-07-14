@@ -79,27 +79,6 @@ public class WatershedParametersFtcXML {
 
         VisionParameters.GrayParameters redDistanceGrayParameters = ImageXML.parseGrayParameters(red_distance_gray_node);
 
-        // Point to the criteria for the red pixel count.
-        Node red_pixel_count_criteria_node = red_distance_gray_node.getNextSibling();
-        red_pixel_count_criteria_node = XMLUtils.getNextElement(red_pixel_count_criteria_node);
-        if (red_pixel_count_criteria_node == null)
-            throw new AutonomousRobotException(TAG, "Element 'watershed_distance/RED/criteria' not found");
-
-        // Parse the <min_white_pixel_count> element.
-        Node red_min_pixels_node = red_pixel_count_criteria_node.getFirstChild();
-        red_min_pixels_node = XMLUtils.getNextElement(red_min_pixels_node);
-        if (red_min_pixels_node == null || !red_min_pixels_node.getNodeName().equals("min_white_pixel_count") ||
-                red_min_pixels_node.getTextContent().isEmpty())
-            throw new AutonomousRobotException(TAG, "Element 'watershed_distance/RED/criteria/min_white_pixel_count' not found or empty");
-
-        String redMinPixelsText = red_min_pixels_node.getTextContent();
-        int redMinPixelCount;
-        try {
-            redMinPixelCount = Integer.parseInt(redMinPixelsText);
-        } catch (NumberFormatException nex) {
-            throw new AutonomousRobotException(TAG, "Invalid number format in element 'watershed_distance/RED/criteria/min_white_pixel_count'");
-        }
-
         // Point to <BLUE> for the blue alliance parameters.
         Node blue_distance_node = red_distance_node.getNextSibling();
         blue_distance_node = XMLUtils.getNextElement(blue_distance_node);
@@ -114,30 +93,9 @@ public class WatershedParametersFtcXML {
 
         VisionParameters.GrayParameters bluePixelCountGrayParameters = ImageXML.parseGrayParameters(blue_distance_gray_node);
 
-        // Point to the criteria for the blue pixel count.
-        Node blue_distance_criteria_node = blue_distance_gray_node.getNextSibling();
-        blue_distance_criteria_node = XMLUtils.getNextElement(blue_distance_criteria_node);
-        if (blue_distance_criteria_node == null)
-            throw new AutonomousRobotException(TAG, "Element 'watershed_distance/BLUE/criteria' not found");
-
-        // Parse the <min_white_pixel_count> element.
-        Node blue_min_pixels_node = blue_distance_criteria_node.getFirstChild();
-        blue_min_pixels_node = XMLUtils.getNextElement(blue_min_pixels_node);
-        if (blue_min_pixels_node == null || !blue_min_pixels_node.getNodeName().equals("min_white_pixel_count") ||
-                blue_min_pixels_node.getTextContent().isEmpty())
-            throw new AutonomousRobotException(TAG, "Element 'watershed_distance/BLUE/criteria/min_white_pixel_count' not found or empty");
-
-        String blueMinPixelsText = blue_min_pixels_node.getTextContent();
-        int blueMinPixelCount;
-        try {
-            blueMinPixelCount = Integer.parseInt(blueMinPixelsText);
-        } catch (NumberFormatException nex) {
-            throw new AutonomousRobotException(TAG, "Invalid number format in element 'watershed_distance/BLUE/criteria/min_white_pixel_count'");
-        }
-
         WatershedParametersFtc.WatershedDistanceParameters watershedDistanceParameters =
-                new WatershedParametersFtc.WatershedDistanceParameters(redDistanceGrayParameters, redMinPixelCount,
-                        bluePixelCountGrayParameters, blueMinPixelCount);
+                new WatershedParametersFtc.WatershedDistanceParameters(redDistanceGrayParameters,
+                        bluePixelCountGrayParameters);
 
         watershedParametersFtc = new WatershedParametersFtc(watershedDistanceParameters);
     }
@@ -145,7 +103,6 @@ public class WatershedParametersFtcXML {
     public WatershedParametersFtc getWatershedParameters() {
         return watershedParametersFtc;
     }
-
 
 }
 
