@@ -91,55 +91,9 @@ public class WatershedRecognitionFtc {
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
 
-        //##PY The Laplacian filtering and the sharpening do make a difference.
-        // But they can be replaced by a simple sharpening kernel - see below.
-        /*
-        //! [sharp]
-        // Create a kernel that we will use to sharpen our image
-        Mat kernel = new Mat(3, 3, CvType.CV_32F);
-        // an approximation of second derivative, a quite strong kernel
-        float[] kernelData = new float[(int) (kernel.total() * kernel.channels())];
-        kernelData[0] = 1; kernelData[1] = 1; kernelData[2] = 1;
-        kernelData[3] = 1; kernelData[4] = -8; kernelData[5] = 1;
-        kernelData[6] = 1; kernelData[7] = 1; kernelData[8] = 1;
-        kernel.put(0, 0, kernelData);
-
-        // do the laplacian filtering as it is
-        // well, we need to convert everything in something more deeper then CV_8U
-        // because the kernel has some negative values,
-        // and we can expect in general to have a Laplacian image with negative values
-        // BUT a 8bits unsigned int (the one we are working with) can contain values
-        // from 0 to 255
-        // so the possible negative number will be truncated
-        Mat imgLaplacian = new Mat();
-        Imgproc.filter2D(src, imgLaplacian, CvType.CV_32F, kernel);
-
-        Mat sharp = new Mat();
-        src.convertTo(sharp, CvType.CV_32F);
-
-        Mat imgResult = new Mat();
-        Core.subtract(sharp, imgLaplacian, imgResult);
-
-        // imshow( "Laplace Filtered Image", imgLaplacian );
-        imgLaplacian.convertTo(imgLaplacian, CvType.CV_8UC3); // convert back to 8bits gray scale
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_LAP.png", imgLaplacian);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_LAP.png");
-
-        // Output the sharpened image
-        imgResult.convertTo(imgResult, CvType.CV_8UC3); // convert back to 8bits gray scale
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_SHARP.png", imgResult);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_SHARP.png");
-        //! [sharp]
-
-        //! [bin]
-        // Create binary image from source image
-        Mat bw = new Mat();
-        Imgproc.cvtColor(imgResult, bw, Imgproc.COLOR_BGR2GRAY);
-        Imgproc.threshold(bw, bw, 40, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
-        //! [bin]
-        */
-
-        //##PY Apply a sharpening kernel to the color image.
+        //##PY The Laplacian filtering and the sharpening in the OpenCV example
+        // do make a difference but they can be replaced by a simple sharpening
+        // kernel.
         Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
 
         // Split the BGR image into its components; see the comments above the method.
@@ -171,8 +125,8 @@ public class WatershedRecognitionFtc {
         RobotLogCommon.d(TAG, "Writing " + openFilename);
 
         // Follow medium.com and perform
-        //dilation for background identification: input = opening, output -> sure_bg
-        //# sure background area
+        // dilation for background identification: input = opening, output -> sure_bg
+        //# sure background area [##PY i.e. the black portions of the sure_bg image]
         //        sure_bg = cv2.dilate(opening, kernel, iterations=3)
         Mat sure_bg = new Mat();
         Imgproc.dilate(opening, sure_bg, kernel, new Point(-1, -1), 3);
@@ -181,8 +135,7 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(bgFilename, sure_bg);
         RobotLogCommon.d(TAG, "Writing " + bgFilename);
 
-        // Follow medium.com and
-        //find the sure foreground area
+        // Follow medium.com and find the sure foreground area
         //        dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2,5)
         //        ret, sure_fg = cv2.threshold(dist_transform, 0.7 * dist_transform.max(), 255, 0)
 
@@ -194,16 +147,8 @@ public class WatershedRecognitionFtc {
         Mat dist = new Mat();
         Imgproc.distanceTransform(opening, dist, Imgproc.DIST_L2, 3);
 
-        //##PY not necessary - just normalize to the range of 0 - 255
-        // Normalize the distance image for range = {0.0, 1.0}
-        // so we can visualize and threshold it.
-        /*
-        Core.normalize(dist, dist, 0.0, 1.0, Core.NORM_MINMAX);
-        Mat distDisplayScaled = new Mat();
-        Core.multiply(dist, new Scalar(255), distDisplayScaled);
-        Mat distDisplay = new Mat();
-        distDisplayScaled.convertTo(distDisplay, CvType.CV_8U);
-        */
+        //##PY The normalization steps in the OpenCV example are not necessary
+        // - just normalize to the range of 0 - 255.
 
         Core.normalize(dist, dist, 0.0, 255.0, Core.NORM_MINMAX);
         Mat dist_8u = new Mat();
@@ -225,14 +170,7 @@ public class WatershedRecognitionFtc {
         Mat sure_fg = new Mat();
         Imgproc.threshold(dist_8u, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
 
-        //##PY not necessary:  Dilate a bit the dist image
-        /*
-        Mat kernel1 = Mat.ones(3, 3, CvType.CV_8U);
-        Imgproc.dilate(dist, dist, kernel1);
-        Mat distDisplay2 = new Mat();
-        dist.convertTo(distDisplay2, CvType.CV_8U);
-        Core.multiply(distDisplay2, new Scalar(255), distDisplay2);
-        */
+        //##PY The dilation steps in the OpenCV example are not necessary.
 
         // Output the foreground peaks.
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_FG.png", sure_fg);
@@ -240,14 +178,8 @@ public class WatershedRecognitionFtc {
         //! [peaks]
 
         //! [seeds]
-        //##PY We don't need this conversion here because we've already
-        // created Mat dist_8u.
-        /*
-        // Create the CV_8U version of the distance image
-        // It is needed for findContours()
-        Mat dist_8u = new Mat();
-        dist.convertTo(dist_8u, CvType.CV_8U);
-        */
+        //##PY Skip the conversion steps in the OpenCV example because we've
+        // already created the 8-bit Mat dist_8u.
 
         // Find the sure foreground objects.
         //## medium.com uses connectedComponents; the standard example uses findContours.
@@ -271,7 +203,9 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_UNK.png", unknown);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_UNK.png");
 
+        //**TODO Comments look suspect ...
         // Follow medium.com
+        // but instead of connected components use the method from //**TODO Laganiere? the standard example.
         /*
         Label the sure_bg, sure_fg and unknown regions
         # Marker labelling
@@ -292,7 +226,6 @@ public class WatershedRecognitionFtc {
         the sure foreground pixels are labeled starting from 2.
          */
 
-        // Instead of connected components use the method from the standard example.
         // Create the marker image for the watershed algorithm
         Mat markers = Mat.ones(dist.size(), CvType.CV_32S);
         // # Add one to all labels so that sure background is not 0, but 1
