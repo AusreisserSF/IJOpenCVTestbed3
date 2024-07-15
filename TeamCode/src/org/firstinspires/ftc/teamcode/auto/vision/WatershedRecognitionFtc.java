@@ -32,25 +32,26 @@ public class WatershedRecognitionFtc {
         testCaseDirectory = pTestCaseDirectory;
     }
 
-    // Use the OpenCV Watershed algorithm with FTC images. The code here is based
-    // on a combination of the official example at
+    // Use the OpenCV Watershed algorithm with FTC images. The code here is
+    // based on a combination of the official example at --
     // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html,
-    // which is implemented in this project as WatershedRecognitionStd, and
-    // a Python solution at
+    // which is implemented in this project as WatershedRecognitionStd,
+    //
+    // a Python solution at --
     // https://medium.com/@jaskaranbhatia/exploring-image-segmentation-techniques-watershed-algorithm-using-opencv-9f73d2bc7c5a
+    //
+    // and a c++ solution from --
+    // OpenCV 3 Computer Vision Application Programming Cookbook,
+    // Third Edition, by Robert Laganiere; pg. 162.
+    // Note how he uses erosion to create the sure foreground and dilation to create
+    // the sure background, how he adds foreground and background to get his markers,
+    // and how he outputs the final results, including just the boundaries.
 
     //##From the testing so far it's not at all clear that the Watershed technique
     // will be useful in FTC; the watershed output of the blue team prop in CenterStage
     // merges the team prop and the blue spike - but the output of the distanceTransform
-    // does look promising - it eliminates the blue spike. And it's not clear how you would
-    // actually use the final output of the watershed in FTC.
-
-    //##For the sake of completeness keep going with the watershed. Introduce a
-    // third reference: the OpenCV 3 Computer Vision Application Programming Cookbook,
-    // Third Edition, by Robert Laganiere; pg. 162. Note how he uses erosion to create
-    // the sure foreground and dilation to create the sure background, how he adds
-    // foreground and background to get his markers, and how he outputs the final results,
-    // including just the boundaries.
+    // does look promising - it eliminates the blue spike. And it's not clear how you
+    // would actually use the final output of the watershed in FTC.
 
     // Returns the result of image analysis.
     public RobotConstants.RecognitionResults performWatershedFtc(ImageProvider pImageProvider,
@@ -102,8 +103,8 @@ public class WatershedRecognitionFtc {
         // Normalize lighting to a known good value.
         Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
 
-        // Follow medium.com and threshold the grayscale (in our case adjusted).
-        // Threshold the image: set pixels over the threshold value to white.
+        // Follow medium.com and threshold the grayscale (in our case adjusted)
+        // to start the segmentation of the image.
         Mat thresholded = new Mat(); // output binary image
         Imgproc.threshold(adjustedGray, thresholded,
                 Math.abs(allianceGrayParameters.threshold_low),    // threshold value
@@ -115,25 +116,39 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(thrFilename, thresholded);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
-        // Follow medium.com and perform two morphological openings on the thresholded image.
-        Mat opening = new Mat();
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.morphologyEx(thresholded, opening, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
+        // Laganiere gets his foreground in a different way: he erodes the grayscale
+        // image. So for comparison we'll do that and output the image.
+        Mat eroded = new Mat();
+        Mat erodeKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.erode(adjustedGray, eroded, erodeKernel, new Point(-1, -1), 3);
 
-        String openFilename = pOutputFilenamePreamble + "_OPEN.png";
-        Imgcodecs.imwrite(openFilename, opening);
-        RobotLogCommon.d(TAG, "Writing " + openFilename);
+        String erodedFilename = pOutputFilenamePreamble + "_ERODE.png";
+        Imgcodecs.imwrite(erodedFilename, eroded);
+        RobotLogCommon.d(TAG, "Writing " + erodedFilename);
 
-        // Follow medium.com and perform
-        // dilation for background identification: input = opening, output -> sure_bg
+        // Follow medium.com and remove noise by performing two morphological
+        // openings on the thresholded image.
+        Mat opened = new Mat();
+        Mat openKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.morphologyEx(thresholded, opened, Imgproc.MORPH_OPEN, openKernel, new Point(-1, -1), 2);
+
+        String openedFilename = pOutputFilenamePreamble + "_OPEN.png";
+        Imgcodecs.imwrite(openedFilename, opened);
+        RobotLogCommon.d(TAG, "Writing " + openedFilename);
+
+        // Follow medium.com and perform dilation for background identification:
+        // input = opening, output -> sure_bg
         //# sure background area [##PY i.e. the black portions of the sure_bg image]
         //        sure_bg = cv2.dilate(opening, kernel, iterations=3)
         Mat sure_bg = new Mat();
-        Imgproc.dilate(opening, sure_bg, kernel, new Point(-1, -1), 3);
+        Imgproc.dilate(opened, sure_bg, openKernel, new Point(-1, -1), 3);
 
         String bgFilename = pOutputFilenamePreamble + "_BG.png";
         Imgcodecs.imwrite(bgFilename, sure_bg);
         RobotLogCommon.d(TAG, "Writing " + bgFilename);
+
+        //**TODO Laganiere does not do a distance transform - create a separate
+        // path for his solution.
 
         // Follow medium.com and find the sure foreground area
         //        dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2,5)
@@ -145,7 +160,7 @@ public class WatershedRecognitionFtc {
         // Perform the distance transform algorithm. Imgproc.DIST_L2
         // is a flag for Euclidean distance. Output is 32FC1.
         Mat dist = new Mat();
-        Imgproc.distanceTransform(opening, dist, Imgproc.DIST_L2, 3);
+        Imgproc.distanceTransform(opened, dist, Imgproc.DIST_L2, 3);
 
         //##PY The normalization steps in the OpenCV example are not necessary
         // - just normalize to the range of 0 - 255.
