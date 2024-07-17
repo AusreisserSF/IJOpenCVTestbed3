@@ -21,7 +21,7 @@ public class WatershedRecognitionFtc {
     private static final String TAG = WatershedRecognitionFtc.class.getSimpleName();
 
     public enum WatershedRecognitionPath {
-        DISTANCE
+        WATERSHED_LAGANIERE, WATERSHED_MEDIUM
     }
 
     private final RobotConstants.Alliance alliance;
@@ -71,20 +71,20 @@ public class WatershedRecognitionFtc {
         Mat imageROI = ImageUtils.preProcessImage(watershedImage.first, outputFilenamePreamble, pImageParameters);
         RobotLogCommon.d(TAG, "Recognition path " + pWatershedRecognitionPath);
 
-        //**TODO You can't use DISTANCE for both medium and Laganiere because
-        // Laganiere does not use the distance transform.
-
         // Adapt the standard example to our environment.
         switch (pWatershedRecognitionPath) {
             // Use a switch by convention in case we have more paths in the future.
-            case DISTANCE -> {
-                return watershedFromDistance(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
+            case WATERSHED_LAGANIERE -> {
+                return watershedLaganiere(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
+            }
+            case WATERSHED_MEDIUM -> {
+                return watershedMedium(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
             }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
         }
     }
 
-    private RobotConstants.RecognitionResults watershedFromDistance(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
+    private RobotConstants.RecognitionResults watershedMedium(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
 
         // Use the grayscale and pixel count criteria parameters for the current alliance.
         VisionParameters.GrayParameters allianceGrayParameters;
@@ -106,7 +106,6 @@ public class WatershedRecognitionFtc {
         // Normalize lighting to a known good value.
         Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
 
-        //**TODO Common to medium and Laganiere ...
         // Follow medium.com and threshold the grayscale (in our case adjusted)
         // to start the segmentation of the image.
         Mat thresholded = new Mat(); // output binary image
@@ -120,17 +119,7 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(thrFilename, thresholded);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
-        // Laganiere gets his foreground in a different way: he erodes the grayscale
-        // image. So for comparison we'll do that and output the image.
-        Mat sure_fg_lg = new Mat();
-        Mat erodeKernel_lg = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.erode(thresholded, sure_fg_lg, erodeKernel_lg, new Point(-1, -1), 4);
-
-        String erodedFilename = pOutputFilenamePreamble + "_FG_LG.png";
-        Imgcodecs.imwrite(erodedFilename, sure_fg_lg);
-        RobotLogCommon.d(TAG, "Writing " + erodedFilename);
-
-        //**TODO MOVE Follow medium.com and remove noise by performing two morphological
+        // Follow medium.com and remove noise by performing two morphological
         // openings on the thresholded image.
         Mat opened = new Mat();
         Mat openKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
@@ -139,21 +128,6 @@ public class WatershedRecognitionFtc {
         String openedFilename = pOutputFilenamePreamble + "_OPEN.png";
         Imgcodecs.imwrite(openedFilename, opened);
         RobotLogCommon.d(TAG, "Writing " + openedFilename);
-
-        //**TODO Laganiere dilates the thresholded binary image 4 times and then
-        // thresholds again - 1, 128 THRESH_BINARY_INV.
-        Mat sure_bg_lg = new Mat();
-        Mat dilateKernel_lg = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.dilate(thresholded, sure_bg_lg, dilateKernel_lg, new Point(-1, -1), 4);
-
-        Imgproc.threshold(sure_bg_lg, sure_bg_lg, 1, 128,
-                Imgproc.THRESH_BINARY_INV); // thresholding type
-
-        String bg_lgFilename = pOutputFilenamePreamble + "_BG_LG.png";
-        Imgcodecs.imwrite(bg_lgFilename, sure_bg_lg);
-        RobotLogCommon.d(TAG, "Writing " + bg_lgFilename);
-
-        //**TODO Laganiere does not do a distance transform.
 
         // Follow medium.com and perform dilation for background identification:
         // input = opening, output -> sure_bg
@@ -208,19 +182,6 @@ public class WatershedRecognitionFtc {
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_FG.png");
         //! [peaks]
 
-        //**TODO Laganiere - obtain the markers by adding the sure foreground and the
-        // sure background.
-        Mat markers_lg = new Mat();
-        Core.add(sure_fg_lg, sure_bg_lg, markers_lg);
-
-        // Output the Laganiere markers.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK_LG.png", markers_lg);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK_LG.png");
-
-        // Convert the Laganiere markers to 32 bits as required by the watershed.
-        Mat markers32_lg = new Mat();
-        markers_lg.convertTo(markers32_lg, CvType.CV_32S);
-
         //! [seeds]
         //##PY Skip the conversion steps in the OpenCV example because we've
         // already created the 8-bit Mat dist_8u.
@@ -247,9 +208,9 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_UNK.png", unknown);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_UNK.png");
 
-        //**TODO Comments look suspect ...
-        // Follow medium.com
-        // but instead of connected components use the method from //**TODO Laganiere? the standard example.
+        // Medium.com uses connectedComponents to initialize its markers
+        // but we'll follow the standard example, which uses the foreground
+        // contours.
         /*
         Label the sure_bg, sure_fg and unknown regions
         # Marker labelling
@@ -315,40 +276,9 @@ public class WatershedRecognitionFtc {
 
         markers.put(0, 0, markerData); // back into Mat
 
-        //## The way of choosing the background marker below looks suspect.
-        /*
-        // Draw the background marker
-        Mat markersScaled = new Mat();
-        markers.convertTo(markersScaled, CvType.CV_32F);
-        Core.normalize(markersScaled, markersScaled, 0.0, 255.0, Core.NORM_MINMAX);
-        Imgproc.circle(markersScaled, new Point(5, 5), 3, new Scalar(255, 255, 255), -1);
-        Mat markersDisplay = new Mat();
-        markersScaled.convertTo(markersDisplay, CvType.CV_8U);
-
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK.png", markersDisplay);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK.png");
-
-        Imgproc.circle(markers, new Point(5, 5), 3, new Scalar(255, 255, 255), -1);
-        //! [seeds]
-        */
-
         //! [watershed]
         // Perform the watershed algorithm
-        //**TODO Try the Laganiere markers32_lg.
-        Imgproc.watershed(sharp, markers32_lg);
-
-        //##PY This so-called "Markers_V2" image is not used in any further
-        // processing.
-        /*
-        Mat mark = Mat.zeros(markers.size(), CvType.CV_8U);
-        markers.convertTo(mark, CvType.CV_8UC1);
-        Core.bitwise_not(mark, mark);
-
-        // imshow("Markers_v2", mark); // uncomment this if you want to see how the mark
-        // image looks like at that point
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK2.png",mark);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK2.png");
-        */
+        Imgproc.watershed(sharp, markers);
 
         // Generate random colors
         Random rng = new Random(12345);
@@ -357,7 +287,6 @@ public class WatershedRecognitionFtc {
             int b = rng.nextInt(256);
             int g = rng.nextInt(256);
             int r = rng.nextInt(256);
-
             colors.add(new Scalar(b, g, r));
         }
 
@@ -374,6 +303,132 @@ public class WatershedRecognitionFtc {
                 int index = markersData[i * markers.cols() + j];
                 // watershed object markers start at 2
                 if (index >= 2) {
+                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 2).val[0];
+                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 2).val[1];
+                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 2).val[2];
+                } else {
+                    dstData[(i * dst.cols() + j) * 3 + 0] = 0;
+                    dstData[(i * dst.cols() + j) * 3 + 1] = 0;
+                    dstData[(i * dst.cols() + j) * 3 + 2] = 0;
+                }
+            }
+        }
+
+        dst.put(0, 0, dstData);
+
+        // Visualize the final image
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_WS.png");
+        //! [watershed]
+
+        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+    }
+
+    private RobotConstants.RecognitionResults watershedLaganiere(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWatershedDistanceParameters) {
+
+        //**TODO Common to medium and Laganiere.
+        // Use the grayscale and pixel count criteria parameters for the current alliance.
+        VisionParameters.GrayParameters allianceGrayParameters;
+        switch (alliance) {
+            case RED -> allianceGrayParameters = pWatershedDistanceParameters.redGrayParameters;
+            case BLUE -> allianceGrayParameters = pWatershedDistanceParameters.blueGrayParameters;
+            default ->
+                    throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
+        }
+
+        //##PY The Laplacian filtering and the sharpening in the OpenCV example
+        // do make a difference but they can be replaced by a simple sharpening
+        // kernel.
+        Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
+
+        // Split the BGR image into its components; see the comments above the method.
+        Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
+
+        // Normalize lighting to a known good value.
+        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
+
+        // Follow medium.com and threshold the grayscale (in our case adjusted)
+        // to start the segmentation of the image.
+        Mat thresholded = new Mat(); // output binary image
+        Imgproc.threshold(adjustedGray, thresholded,
+                Math.abs(allianceGrayParameters.threshold_low),    // threshold value
+                255,   // white
+                Imgproc.THRESH_BINARY); // thresholding type
+        RobotLogCommon.v(TAG, "Threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
+
+        String thrFilename = pOutputFilenamePreamble + "_THR.png";
+        Imgcodecs.imwrite(thrFilename, thresholded);
+        RobotLogCommon.d(TAG, "Writing " + thrFilename);
+        //**TODO End common to medium and Laganiere.
+
+        // Laganiere gets his foreground by eroding the thresholded image.
+        Mat sure_fg_lg = new Mat();
+        Mat erodeKernel_lg = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.erode(thresholded, sure_fg_lg, erodeKernel_lg, new Point(-1, -1), 4);
+
+        String erodedFilename = pOutputFilenamePreamble + "_FG_LG.png";
+        Imgcodecs.imwrite(erodedFilename, sure_fg_lg);
+        RobotLogCommon.d(TAG, "Writing " + erodedFilename);
+
+        // Laganiere gets his background by dilating the thresholded
+        // binary image 4 times and then thresholding again.
+        Mat sure_bg_lg = new Mat();
+        Mat dilateKernel_lg = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.dilate(thresholded, sure_bg_lg, dilateKernel_lg, new Point(-1, -1), 4);
+
+        // Threshold again but invert this time so that all zero bits
+        // become gray (128) for visibility.
+        Imgproc.threshold(sure_bg_lg, sure_bg_lg, 1, 128,
+                Imgproc.THRESH_BINARY_INV); // thresholding type
+
+        String bg_lgFilename = pOutputFilenamePreamble + "_BG_LG.png";
+        Imgcodecs.imwrite(bg_lgFilename, sure_bg_lg);
+        RobotLogCommon.d(TAG, "Writing " + bg_lgFilename);
+
+        // Laganiere does not do a distance transform.
+        // Laganiere obtains the markers by adding the sure foreground
+        // and the sure background.
+        Mat markers_lg = new Mat();
+        Core.add(sure_fg_lg, sure_bg_lg, markers_lg);
+
+        // Output the Laganiere markers.
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK_LG.png", markers_lg);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK_LG.png");
+
+        // Convert the Laganiere markers to 32 bits as required by the watershed.
+        Mat markers32_lg = new Mat();
+        markers_lg.convertTo(markers32_lg, CvType.CV_32S);
+
+        //**TODO All or some of the rest should be common.
+        //! [watershed]
+        // Perform the watershed algorithm
+        Imgproc.watershed(sharp, markers32_lg);
+
+        // Create the result image
+        Mat dst = Mat.zeros(markers32_lg.size(), CvType.CV_8UC3);
+        byte[] dstData = new byte[(int) (dst.total() * dst.channels())];
+        dst.get(0, 0, dstData);
+
+        //**TODO This doesn't work - need to know how many unique markers
+        // there are; this is why the standard example uses contours.
+        // Generate random colors
+        Random rng = new Random(12345);
+        List<Scalar> colors = new ArrayList<>();
+        for (int i = 0; i < (int) (dst.total() * dst.channels()); i++) {
+            int b = rng.nextInt(256);
+            int g = rng.nextInt(256);
+            int r = rng.nextInt(256);
+            colors.add(new Scalar(b, g, r));
+        }
+
+        // Fill labeled objects with random colors
+        int[] markersData = new int[(int) (markers32_lg.total() * markers32_lg.channels())];
+        markers32_lg.get(0, 0, markersData);
+        for (int i = 0; i < markers32_lg.rows(); i++) {
+            for (int j = 0; j < markers32_lg.cols(); j++) {
+                int index = markersData[i * markers32_lg.cols() + j];
+                // watershed object markers are 255
+                if (index == 255) {
                     dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 2).val[0];
                     dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 2).val[1];
                     dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 2).val[2];
