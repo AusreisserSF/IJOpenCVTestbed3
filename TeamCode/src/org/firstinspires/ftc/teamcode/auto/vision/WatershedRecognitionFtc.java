@@ -71,6 +71,9 @@ public class WatershedRecognitionFtc {
         Mat imageROI = ImageUtils.preProcessImage(watershedImage.first, outputFilenamePreamble, pImageParameters);
         RobotLogCommon.d(TAG, "Recognition path " + pWatershedRecognitionPath);
 
+        //**TODO You can't use DISTANCE for both medium and Laganiere because
+        // Laganiere does not use the distance transform.
+
         // Adapt the standard example to our environment.
         switch (pWatershedRecognitionPath) {
             // Use a switch by convention in case we have more paths in the future.
@@ -103,6 +106,7 @@ public class WatershedRecognitionFtc {
         // Normalize lighting to a known good value.
         Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
 
+        //**TODO Common to medium and Laganiere ...
         // Follow medium.com and threshold the grayscale (in our case adjusted)
         // to start the segmentation of the image.
         Mat thresholded = new Mat(); // output binary image
@@ -118,15 +122,15 @@ public class WatershedRecognitionFtc {
 
         // Laganiere gets his foreground in a different way: he erodes the grayscale
         // image. So for comparison we'll do that and output the image.
-        Mat eroded = new Mat();
-        Mat erodeKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.erode(adjustedGray, eroded, erodeKernel, new Point(-1, -1), 3);
+        Mat sure_fg_lg = new Mat();
+        Mat erodeKernel_lg = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.erode(thresholded, sure_fg_lg, erodeKernel_lg, new Point(-1, -1), 4);
 
-        String erodedFilename = pOutputFilenamePreamble + "_ERODE.png";
-        Imgcodecs.imwrite(erodedFilename, eroded);
+        String erodedFilename = pOutputFilenamePreamble + "_FG_LG.png";
+        Imgcodecs.imwrite(erodedFilename, sure_fg_lg);
         RobotLogCommon.d(TAG, "Writing " + erodedFilename);
 
-        // Follow medium.com and remove noise by performing two morphological
+        //**TODO MOVE Follow medium.com and remove noise by performing two morphological
         // openings on the thresholded image.
         Mat opened = new Mat();
         Mat openKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
@@ -135,6 +139,21 @@ public class WatershedRecognitionFtc {
         String openedFilename = pOutputFilenamePreamble + "_OPEN.png";
         Imgcodecs.imwrite(openedFilename, opened);
         RobotLogCommon.d(TAG, "Writing " + openedFilename);
+
+        //**TODO Laganiere dilates the thresholded binary image 4 times and then
+        // thresholds again - 1, 128 THRESH_BINARY_INV.
+        Mat sure_bg_lg = new Mat();
+        Mat dilateKernel_lg = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.dilate(thresholded, sure_bg_lg, dilateKernel_lg, new Point(-1, -1), 4);
+
+        Imgproc.threshold(sure_bg_lg, sure_bg_lg, 1, 128,
+                Imgproc.THRESH_BINARY_INV); // thresholding type
+
+        String bg_lgFilename = pOutputFilenamePreamble + "_BG_LG.png";
+        Imgcodecs.imwrite(bg_lgFilename, sure_bg_lg);
+        RobotLogCommon.d(TAG, "Writing " + bg_lgFilename);
+
+        //**TODO Laganiere does not do a distance transform.
 
         // Follow medium.com and perform dilation for background identification:
         // input = opening, output -> sure_bg
@@ -146,9 +165,6 @@ public class WatershedRecognitionFtc {
         String bgFilename = pOutputFilenamePreamble + "_BG.png";
         Imgcodecs.imwrite(bgFilename, sure_bg);
         RobotLogCommon.d(TAG, "Writing " + bgFilename);
-
-        //**TODO Laganiere does not do a distance transform - create a separate
-        // path for his solution.
 
         // Follow medium.com and find the sure foreground area
         //        dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2,5)
@@ -191,6 +207,19 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_FG.png", sure_fg);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_FG.png");
         //! [peaks]
+
+        //**TODO Laganiere - obtain the markers by adding the sure foreground and the
+        // sure background.
+        Mat markers_lg = new Mat();
+        Core.add(sure_fg_lg, sure_bg_lg, markers_lg);
+
+        // Output the Laganiere markers.
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK_LG.png", markers_lg);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK_LG.png");
+
+        // Convert the Laganiere markers to 32 bits as required by the watershed.
+        Mat markers32_lg = new Mat();
+        markers_lg.convertTo(markers32_lg, CvType.CV_32S);
 
         //! [seeds]
         //##PY Skip the conversion steps in the OpenCV example because we've
@@ -305,7 +334,8 @@ public class WatershedRecognitionFtc {
 
         //! [watershed]
         // Perform the watershed algorithm
-        Imgproc.watershed(sharp, markers);
+        //**TODO Try the Laganiere markers32_lg.
+        Imgproc.watershed(sharp, markers32_lg);
 
         //##PY This so-called "Markers_V2" image is not used in any further
         // processing.
