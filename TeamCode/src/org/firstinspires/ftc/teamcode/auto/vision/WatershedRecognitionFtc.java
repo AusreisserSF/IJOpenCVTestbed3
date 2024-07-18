@@ -179,7 +179,10 @@ public class WatershedRecognitionFtc {
         Mat sure_fg = new Mat();
         Imgproc.threshold(dist_8u, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
 
-        //##PY The dilation steps in the OpenCV example are not necessary.
+        // From the standard example.
+        // Dilate a bit the thresholded image
+        Mat dilationKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.dilate(sure_fg, sure_fg, dilationKernel);
 
         // Output the foreground peaks.
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_FG.png", sure_fg);
@@ -235,10 +238,13 @@ public class WatershedRecognitionFtc {
         the sure foreground pixels are labeled starting from 2.
          */
 
-        // Create the marker image for the watershed algorithm
-        Mat markers = Mat.ones(dist.size(), CvType.CV_32S);
+        // Create the marker image for the watershed algorithm.
         // # Add one to all labels so that sure background is not 0, but 1
         // markers = markers+1
+        //**TODO ?Follow Laganiere and initialize the sure background to 128
+        // for visibility. Change indexes below.
+        Mat markers = Mat.ones(dist.size(), CvType.CV_32S);
+
         // Draw the foreground markers
         for (int i = 0; i < contours.size(); i++) {
             Imgproc.drawContours(markers, contours, i, new Scalar(i + 2), -1);
@@ -261,7 +267,6 @@ public class WatershedRecognitionFtc {
         m.put(0, 0, buff);
          */
 
-        //?? Shouldn't both channel values be 1??
         // The number of elements in these two arrays should be the same.
         byte[] unknownData = new byte[(int) (unknown.total() * unknown.channels())];
         int[] markerData = new int[(int) (markers.total() * markers.channels())];
@@ -299,7 +304,7 @@ public class WatershedRecognitionFtc {
         byte[] dstData = new byte[(int) (dst.total() * dst.channels())];
         dst.get(0, 0, dstData);
 
-        // Fill labeled objects with random colors
+        // Fill labeled objects with random colors.
         int[] markersData = new int[(int) (markers.total() * markers.channels())];
         markers.get(0, 0, markersData);
         for (int i = 0; i < markers.rows(); i++) {
@@ -394,6 +399,9 @@ public class WatershedRecognitionFtc {
         // Laganiere does not do a distance transform.
         // Laganiere obtains the markers by adding the sure foreground
         // and the sure background.
+        //**TODO However, I don't think it will work to use the same
+        // value for the sure foreground (255) when the objects are
+        // touching, e.g. cards, coins, pills.
         Mat markers_lg = new Mat();
         Core.add(sure_fg_lg, sure_bg_lg, markers_lg);
 
