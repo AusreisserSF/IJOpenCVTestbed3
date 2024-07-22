@@ -84,6 +84,9 @@ public class WatershedRecognitionFtc {
             case WATERSHED_HYBRID -> {
                 return watershedHybrid(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
             }
+            case WATERSHED_CARDS -> {
+                return watershedCards(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
+            }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
         }
     }
@@ -642,7 +645,7 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLK.png", src);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLK.png");
 
-        //**TODO STOPPED HERE 7/17/24 - Can we ever get watershed to distinguish
+        //**TODO Can we ever get watershed to distinguish
         // between the spike line and the team prop?
         //**TODO The rest of the code for the cards goes here ... Will
         // overlap with the hybrid ...
@@ -650,7 +653,219 @@ public class WatershedRecognitionFtc {
         // The results are nearly identical - actually both methods
         // miss-classify the empty space just under the card in the
         // upper-right.
-        Mat imgResult = sharpen(src, pOutputFilenamePreamble);
+        Mat sharp = sharpen(src, pOutputFilenamePreamble);
+
+        //**TODO Follow the standard example; split and adjust later.
+        //! [bin]
+        // Create binary image from source image
+        Mat bw = new Mat();
+        Imgproc.cvtColor(sharp, bw, Imgproc.COLOR_BGR2GRAY);
+        Imgproc.threshold(bw, bw, 40, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
+
+        // Output the thresholded image.
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_THR.png", bw);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_THR.png");
+        //! [bin]
+        //**TODO end std
+
+        // Follow medium.com and perform dilation for background identification:
+        // input = opening, output -> sure_bg
+        //# sure background area [##PY i.e. the black portions of the sure_bg image]
+        //        sure_bg = cv2.dilate(opening, kernel, iterations=3)
+        Mat sure_bg = new Mat();
+        Mat openKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.dilate(bw, sure_bg, openKernel, new Point(-1, -1), 3);
+
+        String bgFilename = pOutputFilenamePreamble + "_BG.png";
+        Imgcodecs.imwrite(bgFilename, sure_bg);
+        RobotLogCommon.d(TAG, "Writing " + bgFilename);
+
+        // Follow medium.com and find the sure foreground area
+        //        dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2,5)
+        //        ret, sure_fg = cv2.threshold(dist_transform, 0.7 * dist_transform.max(), 255, 0)
+
+        // The distance identifies regions that are likely to be in
+        // the foreground.
+        //! [dist]
+        // Perform the distance transform algorithm. Imgproc.DIST_L2
+        // is a flag for Euclidean distance. Output is 32FC1.
+        Mat dist = new Mat();
+        Imgproc.distanceTransform(bw, dist, Imgproc.DIST_L2, 3);
+
+        //##PY The normalization steps in the OpenCV example are not necessary
+        // - just normalize to the range of 0 - 255.
+
+        Core.normalize(dist, dist, 0.0, 255.0, Core.NORM_MINMAX);
+        Mat dist_8u = new Mat();
+        dist.convertTo(dist_8u, CvType.CV_8U);
+
+        // Output the transformed image.
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_DIST.png", dist_8u);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
+        //! [dist]
+
+        // Follow medium.com
+        // find the sure foreground area
+
+        //! [peaks]
+        // Threshold to obtain the peaks.
+        // These will be the markers for the foreground objects.
+        //##PY Since we've already normalized to a range of 0 - 255 we can replace this
+        // Imgproc.threshold(dist, dist, 0.4, 1.0, Imgproc.THRESH_BINARY);
+        Mat sure_fg = new Mat();
+        Imgproc.threshold(dist_8u, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
+
+        // From the standard example.
+        // Dilate a bit the thresholded image
+        Mat dilationKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.dilate(sure_fg, sure_fg, dilationKernel);
+
+        // Output the foreground peaks.
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_FG.png", sure_fg);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_FG.png");
+        //! [peaks]
+
+        //! [seeds]
+        //##PY Skip the conversion steps in the OpenCV example because we've
+        // already created the 8-bit Mat dist_8u.
+
+        // Find the sure foreground objects.
+        //## medium.com uses connectedComponents; the standard example uses findContours.
+        List<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(sure_fg, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+        //#PY added - output the contours.
+        Mat contoursOut = pImageROI.clone();
+        ShapeDrawing.drawShapeContours(contours, contoursOut);
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON.png", contoursOut);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON.png");
+
+        // Follow medium.com
+        // find unknown regions
+        //  sure_fg = np.uint8(sure_fg)
+        //  unknown = cv2.subtract(sure_bg, sure_fg)
+        Mat unknown = new Mat();
+        Core.subtract(sure_bg, sure_fg, unknown);
+
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_UNK.png", unknown);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_UNK.png");
+
+        // Medium.com uses connectedComponents to initialize its markers
+        // but we'll follow the standard example, which uses the foreground
+        // contours.
+        /*
+        Label the sure_bg, sure_fg and unknown regions
+        # Marker labelling
+        # Connected Components determines the connectivity of blob-like regions in a binary image.
+        ret, markers = cv2.connectedComponents(sure_fg)
+
+        # Add one to all labels so that sure background is not 0, but 1
+        markers = markers+1
+
+        # Now, mark the region of unknown with zero
+        markers[unknown==255] = 0
+         */
+
+        /*
+        Also, we want the sure background to be labeled differently from
+        the sure foreground, we add 1 to all the labels in the marker image.
+        After this operation, sure background pixels are labeled as 1, and
+        the sure foreground pixels are labeled starting from 2.
+         */
+
+        // Create the marker image for the watershed algorithm.
+        // # Add one to all labels so that sure background is not 0, but 1
+        // markers = markers+1
+        //**TODO ?Follow Laganiere and initialize the sure background to 128
+        // for visibility. Change indexes below.
+        Mat markers = Mat.ones(dist.size(), CvType.CV_32S);
+
+        // Draw the foreground markers
+        for (int i = 0; i < contours.size(); i++) {
+            Imgproc.drawContours(markers, contours, i, new Scalar(i + 2), -1);
+        }
+
+        // Follow medium.com
+        // # Now, mark the region of unknown with zero
+        // markers[unknown==255] = 0
+
+        // Since we don't have that nice Python syntax,
+        // we need to iterate through the Mat of unknowns and for every
+        // white (255) value, set the marker at the some location to 0.
+        // See https://answers.opencv.org/question/5/how-to-get-and-modify-the-pixel-of-mat-in-java/?answer=8#post-id-8
+        /*
+        Mat m = ...  // assuming it's of CV_8U type
+        byte buff[] = new byte[m.total() * m.channels()];
+        m.get(0, 0, buff);
+        // working with buff
+        // ...
+        m.put(0, 0, buff);
+         */
+
+        // The number of elements in these two arrays should be the same.
+        byte[] unknownData = new byte[(int) (unknown.total() * unknown.channels())];
+        int[] markerData = new int[(int) (markers.total() * markers.channels())];
+        int numMarkerRows = markers.rows();
+        int numMarkerCols = markers.cols();
+        unknown.get(0, 0, unknownData);
+        markers.get(0, 0, markerData);
+        int sharedIndex;
+        for (int i = 0; i < numMarkerRows; i++) {
+            for (int j = 0; j < numMarkerCols; j++) {
+                sharedIndex = (i * numMarkerCols) + j;
+                if ((unknownData[sharedIndex] & 0xff) == 255)
+                    markerData[sharedIndex] = 0;
+            }
+        }
+
+        markers.put(0, 0, markerData); // back into Mat
+
+        //! [watershed]
+        // Perform the watershed algorithm
+        Imgproc.watershed(sharp, markers);
+
+        // Generate random colors
+        Random rng = new Random(12345);
+        List<Scalar> colors = new ArrayList<>(contours.size());
+        for (int i = 0; i < contours.size(); i++) {
+            int b = rng.nextInt(256);
+            int g = rng.nextInt(256);
+            int r = rng.nextInt(256);
+            colors.add(new Scalar(b, g, r));
+        }
+
+        // Create the result image
+        Mat dst = Mat.zeros(markers.size(), CvType.CV_8UC3);
+        byte[] dstData = new byte[(int) (dst.total() * dst.channels())];
+        dst.get(0, 0, dstData);
+
+        // Fill labeled objects with random colors.
+        int[] markersData = new int[(int) (markers.total() * markers.channels())];
+        markers.get(0, 0, markersData);
+        for (int i = 0; i < markers.rows(); i++) {
+            for (int j = 0; j < markers.cols(); j++) {
+                int index = markersData[i * markers.cols() + j];
+                // watershed object markers start at 2
+                if (index >= 2) {
+                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 2).val[0];
+                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 2).val[1];
+                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 2).val[2];
+                } else {
+                    dstData[(i * dst.cols() + j) * 3 + 0] = 0;
+                    dstData[(i * dst.cols() + j) * 3 + 1] = 0;
+                    dstData[(i * dst.cols() + j) * 3 + 2] = 0;
+                }
+            }
+        }
+
+        dst.put(0, 0, dstData);
+
+        // Visualize the final image
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_WS.png");
+        //! [watershed]
+
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
