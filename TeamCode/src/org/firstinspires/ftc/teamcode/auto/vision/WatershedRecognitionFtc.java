@@ -91,6 +91,9 @@ public class WatershedRecognitionFtc {
         }
     }
 
+    //**TODO The post on medium.com is actually a copy of the OpenCV standard
+    // version for Python. Both use the same image of coins.
+    // https://docs.opencv.org/4.x/d3/db4/tutorial_py_watershed.html
     private RobotConstants.RecognitionResults watershedMedium(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
 
         // Use the grayscale and pixel count criteria parameters for the current alliance.
@@ -182,7 +185,7 @@ public class WatershedRecognitionFtc {
         Mat sure_fg = new Mat();
         Imgproc.threshold(dist_8u, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
 
-        // From the standard example.
+        // From the standard C++ example - but not Python.
         // Dilate a bit the thresholded image
         Mat dilationKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
         Imgproc.dilate(sure_fg, sure_fg, dilationKernel);
@@ -655,26 +658,56 @@ public class WatershedRecognitionFtc {
         // upper-right.
         Mat sharp = sharpen(src, pOutputFilenamePreamble);
 
-        //**TODO Follow the standard example; split and adjust later.
+        ArrayList<Mat> channels = new ArrayList<>(3);
+        Core.split(sharp, channels); // red or blue channel. B = 0, G = 1, R = 2
+        Mat redChannel = channels.get(2);
+
+        String redFilename = pOutputFilenamePreamble + "_RED.png";
+        Imgcodecs.imwrite(redFilename, redChannel);
+        RobotLogCommon.d(TAG, "Writing " + redFilename);
+
+        /*
         //! [bin]
         // Create binary image from source image
+        Mat gray = new Mat();
+        Imgproc.cvtColor(sharp, gray, Imgproc.COLOR_BGR2GRAY);
+
+        String grayFilename = pOutputFilenamePreamble + "_GRAY.png";
+        Imgcodecs.imwrite(grayFilename, gray);
+        RobotLogCommon.d(TAG, "Writing " + grayFilename);
+        */
+
         Mat bw = new Mat();
-        Imgproc.cvtColor(sharp, bw, Imgproc.COLOR_BGR2GRAY);
-        Imgproc.threshold(bw, bw, 40, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
+        Imgproc.threshold(redChannel, bw, 220, 255, Imgproc.THRESH_BINARY); //**TODO?? | Imgproc.THRESH_OTSU);
 
         // Output the thresholded image.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_THR.png", bw);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_THR.png");
+        String thrFilename = pOutputFilenamePreamble + "_THR.png";
+        Imgcodecs.imwrite(thrFilename, bw);
+        RobotLogCommon.d(TAG, "Writing " + thrFilename);
         //! [bin]
         //**TODO end std
+
+        //**TODO Both Python examples perform two morphological openings
+        // but the c++ example does not.
+        // Follow medium.com and remove noise by performing two morphological
+        // openings on the thresholded image.
+        /*
+        Mat opened = new Mat();
+        Mat openKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.morphologyEx(bw, opened, Imgproc.MORPH_OPEN, openKernel, new Point(-1, -1), 2);
+
+        String openedFilename = pOutputFilenamePreamble + "_OPEN.png";
+        Imgcodecs.imwrite(openedFilename, opened);
+        RobotLogCommon.d(TAG, "Writing " + openedFilename);
+      */
 
         // Follow medium.com and perform dilation for background identification:
         // input = opening, output -> sure_bg
         //# sure background area [##PY i.e. the black portions of the sure_bg image]
         //        sure_bg = cv2.dilate(opening, kernel, iterations=3)
         Mat sure_bg = new Mat();
-        Mat openKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.dilate(bw, sure_bg, openKernel, new Point(-1, -1), 3);
+        Mat dilateKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.dilate(bw, sure_bg, dilateKernel, new Point(-1, -1), 3);
 
         String bgFilename = pOutputFilenamePreamble + "_BG.png";
         Imgcodecs.imwrite(bgFilename, sure_bg);
