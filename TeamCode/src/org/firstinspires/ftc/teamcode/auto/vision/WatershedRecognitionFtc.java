@@ -34,7 +34,7 @@ public class WatershedRecognitionFtc {
     }
 
     // Use the OpenCV Watershed algorithm with FTC images. The code here is
-    // based on a combination of the official example at --
+    // based on a combination of the official c++ example at --
     // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html,
     // which is implemented in this project as WatershedRecognitionStd,
     //
@@ -42,7 +42,7 @@ public class WatershedRecognitionFtc {
     // https://medium.com/@jaskaranbhatia/exploring-image-segmentation-techniques-watershed-algorithm-using-opencv-9f73d2bc7c5a
     //
     // and a c++ solution from --
-    // OpenCV 3 Computer Vision Application Programming Cookbook,
+    //**TODO Remove?? OpenCV 3 Computer Vision Application Programming Cookbook,
     // Third Edition, by Robert Laganiere; pg. 162.
     // Note how he uses erosion to create the sure foreground and dilation to create
     // the sure background, how he adds foreground and background to get his markers,
@@ -85,7 +85,7 @@ public class WatershedRecognitionFtc {
                 return watershedHybrid(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
             }
             case WATERSHED_CARDS -> {
-                return watershedCards(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
+                return watershedCards(imageROI, outputFilenamePreamble);
             }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
         }
@@ -617,13 +617,28 @@ public class WatershedRecognitionFtc {
         ShapeDrawing.drawShapeContours(contours, contoursOut);
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON_LG.png", contoursOut);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON_LG.png");
+
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
-    private RobotConstants.RecognitionResults watershedCards(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWatershedDistanceParameters) {
-        // Adapt the standard example to our environment.
-        //!! Note that the example misses the card in the upper right.
+    //**TODO Put WatershedRecognitionStd and this hybrid into its own class.
+    // Don't need the WatershedParameters.xml file.
 
+    // Create a hybrid of the standard c++ example (cards) and the standard
+    // Python example (coins) and adapt the solution to our environment.
+    //!! Note that the c++ example misses the boundary between the two cards
+    // at the center right; this hybrid method is better but not perfect.
+
+    // The official c++ example is here --
+    // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html,
+    // which is implemented in this project as WatershedRecognitionStd,
+    //
+    // The official Python example is here --
+    // https://docs.opencv.org/4.x/d3/db4/tutorial_py_watershed.html
+    //
+    private RobotConstants.RecognitionResults watershedCards(Mat pImageROI, String pOutputFilenamePreamble) {
+
+        // Source: c++ example - specific to the cards image.
         //! [black_bg]
         // Change the background from white to black, since that will help later to
         // extract better results during the use of Distance Transform
@@ -648,16 +663,16 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLK.png", src);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLK.png");
 
-        //**TODO Can we ever get watershed to distinguish
-        // between the spike line and the team prop?
-        //**TODO The rest of the code for the cards goes here ... Will
-        // overlap with the hybrid ...
-        //##PY Try a sharpening kernel I got from stackoverflow.
-        // The results are nearly identical - actually both methods
-        // miss-classify the empty space just under the card in the
+        // The Python example does not use a sharpening Kernel.
+        // The c++ example uses a multi-step sharpening pass but
+        // the sharpening kernel I got from stackoverflow produces.
+        // nearly identical results - actually both methods miss-
+        // classify the empty space just under the card in the
         // upper-right.
         Mat sharp = sharpen(src, pOutputFilenamePreamble);
 
+        // Unlike both official samples we will use the red channel
+        // of the sharpened cards image.
         ArrayList<Mat> channels = new ArrayList<>(3);
         Core.split(sharp, channels); // red or blue channel. B = 0, G = 1, R = 2
         Mat redChannel = channels.get(2);
@@ -666,45 +681,22 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(redFilename, redChannel);
         RobotLogCommon.d(TAG, "Writing " + redFilename);
 
-        /*
-        //! [bin]
-        // Create binary image from source image
-        Mat gray = new Mat();
-        Imgproc.cvtColor(sharp, gray, Imgproc.COLOR_BGR2GRAY);
-
-        String grayFilename = pOutputFilenamePreamble + "_GRAY.png";
-        Imgcodecs.imwrite(grayFilename, gray);
-        RobotLogCommon.d(TAG, "Writing " + grayFilename);
-        */
-
+        // Both standard examples use OTSU but we get better results (the
+        // interiors of the cards go to white) with a straight binary
+        // threshold.
         Mat bw = new Mat();
-        Imgproc.threshold(redChannel, bw, 220, 255, Imgproc.THRESH_BINARY); //**TODO?? | Imgproc.THRESH_OTSU);
+        Imgproc.threshold(redChannel, bw, 175, 255, Imgproc.THRESH_BINARY);
 
         // Output the thresholded image.
         String thrFilename = pOutputFilenamePreamble + "_THR.png";
         Imgcodecs.imwrite(thrFilename, bw);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
         //! [bin]
-        //**TODO end std
 
-        //**TODO Both Python examples perform two morphological openings
-        // but the c++ example does not.
-        // Follow medium.com and remove noise by performing two morphological
-        // openings on the thresholded image.
-        /*
-        Mat opened = new Mat();
-        Mat openKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.morphologyEx(bw, opened, Imgproc.MORPH_OPEN, openKernel, new Point(-1, -1), 2);
+        // Both Python examples perform two morphological openings but the
+        // c++ example does not.
 
-        String openedFilename = pOutputFilenamePreamble + "_OPEN.png";
-        Imgcodecs.imwrite(openedFilename, opened);
-        RobotLogCommon.d(TAG, "Writing " + openedFilename);
-      */
-
-        // Follow medium.com and perform dilation for background identification:
-        // input = opening, output -> sure_bg
-        //# sure background area [##PY i.e. the black portions of the sure_bg image]
-        //        sure_bg = cv2.dilate(opening, kernel, iterations=3)
+        // Follow the Python example and perform dilation for background identification.
         Mat sure_bg = new Mat();
         Mat dilateKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
         Imgproc.dilate(bw, sure_bg, dilateKernel, new Point(-1, -1), 3);
@@ -713,21 +705,15 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(bgFilename, sure_bg);
         RobotLogCommon.d(TAG, "Writing " + bgFilename);
 
-        // Follow medium.com and find the sure foreground area
-        //        dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2,5)
-        //        ret, sure_fg = cv2.threshold(dist_transform, 0.7 * dist_transform.max(), 255, 0)
-
-        // The distance identifies regions that are likely to be in
-        // the foreground.
         //! [dist]
-        // Perform the distance transform algorithm. Imgproc.DIST_L2
-        // is a flag for Euclidean distance. Output is 32FC1.
+        // Follow both examples and perform the distance transform
+        // algorithm. Imgproc.DIST_L2 is a flag for Euclidean distance.
+        // Output is 32FC1.
         Mat dist = new Mat();
         Imgproc.distanceTransform(bw, dist, Imgproc.DIST_L2, 3);
 
-        //##PY The normalization steps in the OpenCV example are not necessary
+        //##PY The normalization steps in the c++ example are not necessary
         // - just normalize to the range of 0 - 255.
-
         Core.normalize(dist, dist, 0.0, 255.0, Core.NORM_MINMAX);
         Mat dist_8u = new Mat();
         dist.convertTo(dist_8u, CvType.CV_8U);
@@ -737,19 +723,16 @@ public class WatershedRecognitionFtc {
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
         //! [dist]
 
-        // Follow medium.com
-        // find the sure foreground area
-
         //! [peaks]
-        // Threshold to obtain the peaks.
+        // Follow the c++ example and threshold to obtain the peaks.
         // These will be the markers for the foreground objects.
         //##PY Since we've already normalized to a range of 0 - 255 we can replace this
         // Imgproc.threshold(dist, dist, 0.4, 1.0, Imgproc.THRESH_BINARY);
         Mat sure_fg = new Mat();
         Imgproc.threshold(dist_8u, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
 
-        // From the standard example.
-        // Dilate a bit the thresholded image
+        // From the c++ example. The Python example does not do this.
+        // Dilate a bit the thresholded image.
         Mat dilationKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
         Imgproc.dilate(sure_fg, sure_fg, dilationKernel);
 
@@ -759,11 +742,11 @@ public class WatershedRecognitionFtc {
         //! [peaks]
 
         //! [seeds]
-        //##PY Skip the conversion steps in the OpenCV example because we've
+        //##PY Skip the conversion steps in the c++ example because we've
         // already created the 8-bit Mat dist_8u.
 
-        // Find the sure foreground objects.
-        //## medium.com uses connectedComponents; the standard example uses findContours.
+        // At last find the sure foreground objects.
+        // The Python example uses connectedComponents; the c++ example uses findContours.
         List<MatOfPoint> contours = new ArrayList<>();
         Mat hierarchy = new Mat();
         Imgproc.findContours(sure_fg, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
@@ -774,8 +757,7 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON.png", contoursOut);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON.png");
 
-        // Follow medium.com
-        // find unknown regions
+        // Follow the Python example to find the unknown regions
         //  sure_fg = np.uint8(sure_fg)
         //  unknown = cv2.subtract(sure_bg, sure_fg)
         Mat unknown = new Mat();
@@ -784,42 +766,20 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_UNK.png", unknown);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_UNK.png");
 
-        // Medium.com uses connectedComponents to initialize its markers
-        // but we'll follow the standard example, which uses the foreground
-        // contours.
-        /*
-        Label the sure_bg, sure_fg and unknown regions
-        # Marker labelling
-        # Connected Components determines the connectivity of blob-like regions in a binary image.
-        ret, markers = cv2.connectedComponents(sure_fg)
-
-        # Add one to all labels so that sure background is not 0, but 1
-        markers = markers+1
-
-        # Now, mark the region of unknown with zero
-        markers[unknown==255] = 0
-         */
-
-        /*
-        Also, we want the sure background to be labeled differently from
-        the sure foreground, we add 1 to all the labels in the marker image.
-        After this operation, sure background pixels are labeled as 1, and
-        the sure foreground pixels are labeled starting from 2.
-         */
-
-        // Create the marker image for the watershed algorithm.
-        // # Add one to all labels so that sure background is not 0, but 1
-        // markers = markers+1
-        //**TODO ?Follow Laganiere and initialize the sure background to 128
-        // for visibility. Change indexes below.
+        // Create the markers for the watershed algorithm. From the comments
+        // in the Python example: "The regions we know for sure (whether
+        // foreground or background) are labelled with any positive integers,
+        // but different integers, and the areas we don't know for sure are
+        // just left as zero." So we'll start with markers initialized to 1
+        // for the sure background.
         Mat markers = Mat.ones(dist.size(), CvType.CV_32S);
 
-        // Draw the foreground markers
+        // Follow the c++ example and dDraw the foreground markers.
         for (int i = 0; i < contours.size(); i++) {
             Imgproc.drawContours(markers, contours, i, new Scalar(i + 2), -1);
         }
 
-        // Follow medium.com
+        // Follow the Python example --
         // # Now, mark the region of unknown with zero
         // markers[unknown==255] = 0
 
@@ -827,14 +787,6 @@ public class WatershedRecognitionFtc {
         // we need to iterate through the Mat of unknowns and for every
         // white (255) value, set the marker at the some location to 0.
         // See https://answers.opencv.org/question/5/how-to-get-and-modify-the-pixel-of-mat-in-java/?answer=8#post-id-8
-        /*
-        Mat m = ...  // assuming it's of CV_8U type
-        byte buff[] = new byte[m.total() * m.channels()];
-        m.get(0, 0, buff);
-        // working with buff
-        // ...
-        m.put(0, 0, buff);
-         */
 
         // The number of elements in these two arrays should be the same.
         byte[] unknownData = new byte[(int) (unknown.total() * unknown.channels())];
@@ -847,7 +799,7 @@ public class WatershedRecognitionFtc {
         for (int i = 0; i < numMarkerRows; i++) {
             for (int j = 0; j < numMarkerCols; j++) {
                 sharedIndex = (i * numMarkerCols) + j;
-                if ((unknownData[sharedIndex] & 0xff) == 255)
+                if ((unknownData[sharedIndex] & 0xff) == 255) // Java doesn't have an unsigned byte!
                     markerData[sharedIndex] = 0;
             }
         }
@@ -898,7 +850,6 @@ public class WatershedRecognitionFtc {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_WS.png");
         //! [watershed]
-
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
