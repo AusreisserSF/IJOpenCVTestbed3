@@ -96,7 +96,7 @@ public class WatershedRecognitionFtc {
         //##PY The Laplacian filtering and the sharpening in the OpenCV example
         // do make a difference but they can be replaced by a simple sharpening
         // kernel.
-        Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
+        Mat sharp = ImageUtils.sharpen(pImageROI, pOutputFilenamePreamble);
 
         // Split the BGR image into its components; see the comments above the method.
         Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
@@ -204,7 +204,7 @@ public class WatershedRecognitionFtc {
         //##PY The Laplacian filtering and the sharpening in the OpenCV example
         // do make a difference but they can be replaced by a simple sharpening
         // kernel.
-        Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
+        Mat sharp = ImageUtils.sharpen(pImageROI, pOutputFilenamePreamble);
 
         // Split the BGR image into its components; see the comments above the method.
         Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
@@ -252,39 +252,6 @@ public class WatershedRecognitionFtc {
         Imgproc.dilate(adjustedGray, adjustedGray, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
 
         return adjustedGray;
-    }
-
-    //**TODO Duplicated in WatershedRecogntionFtc. Put into ImageUtils.
-    //## Imported from IJCenterStageVision.
-    //## This sharpening filter makes a difference in marginal cases.
-    // From OpencvTestbed3 (cpp) GrayscaleTechnique
-    // From https://stackoverflow.com/questions/27393401/opencv-in-java-for-image-filtering
-    private Mat sharpen(Mat pDullMat, String pOutputFilenamePreamble) {
-        int kernelSize = 3;
-        Mat kernel = new Mat(kernelSize, kernelSize, CvType.CV_32F) {
-            {
-                put(0, 0, 0);
-                put(0, 1, -1);
-                put(0, 2, 0);
-
-                put(1, 0, -1);
-                put(1, 1, 5);
-                put(1, 2, -1);
-
-                put(2, 0, 0);
-                put(2, 1, -1);
-                put(2, 2, 0);
-            }
-        };
-
-        Mat sharpMat = new Mat();
-        Imgproc.filter2D(pDullMat, sharpMat, -1, kernel);
-
-        String sharpFilename = pOutputFilenamePreamble + "_SHARP.png";
-        RobotLogCommon.d(TAG, "Writing " + sharpFilename);
-        Imgcodecs.imwrite(sharpFilename, sharpMat);
-
-        return sharpMat;
     }
 
 }

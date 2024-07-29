@@ -20,7 +20,7 @@ public class WatershedRecognitionStd {
     private static final String TAG = WatershedRecognitionStd.class.getSimpleName();
 
     public enum WatershedRecognitionPath {
-        WATERSHED_CARDS_CPP, WATERSHED_CARDS_HYBRID
+        WATERSHED_CARDS_STD, WATERSHED_CARDS_HYBRID
     }
 
     private final String testCaseDirectory;
@@ -31,29 +31,28 @@ public class WatershedRecognitionStd {
         testCaseDirectory = pTestCaseDirectory;
     }
 
-    //**TODO OpenCV has two examples: c++ and Python ...
-    // Reproduce the c++ example and also create a hybrid of both examples
-    // that works with cards - even though the Python example uses coins ...
+    // OpenCV has two examples: a standard example (c++, Java, Python)
+    // that works with an image of cards and a Python-only example that
+    // works with an image of coins.
 
-    // Create a hybrid of the standard c++ example (cards) and the standard
-    // Python example (coins) and adapt the solution to our environment.
-    //!! Note that the c++ example misses the boundary between the two cards
-    // at the center right; this hybrid method is better but not perfect.
+    // Reproduce the standard Java example and also create a hybrid of
+    // both examples that works with cards.
 
-    // The official c++ example is here --
+    //!! Note that the standard example misses the boundary between the
+    // two cards at the center right; our hybrid method is better but
+    // not perfect.
+
+    // The OpenCV standard example is here --
     // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html,
     // which is implemented in this project as WatershedRecognitionStd,
     //
-    // The official Python example is here --
+    // The OpenCV Python example is here --
     // https://docs.opencv.org/4.x/d3/db4/tutorial_py_watershed.html
     //
     // Returns the result of image analysis.
     public RobotConstants.RecognitionResults performWatershedStd(ImageProvider pImageProvider,
                                                                  VisionParameters.ImageParameters pImageParameters,
                                                                  WatershedRecognitionPath pWatershedRecognitionPath) throws InterruptedException {
-
-        //**TODO Need to split the c++ path from the hybrid path.
-
         RobotLogCommon.d(TAG, "In WatershedRecognitionStd.performWatershedStd");
 
         // LocalDateTime requires Android minSdkVersion 26  public Pair<Mat, LocalDateTime> getImage() throws InterruptedException;
@@ -69,7 +68,7 @@ public class WatershedRecognitionStd {
 
         // Adapt the standard example to our environment.
         switch (pWatershedRecognitionPath) {
-            case WATERSHED_CARDS_CPP -> {
+            case WATERSHED_CARDS_STD -> {
                 return watershedCardsCPP(imageROI, outputFilenamePreamble);
             }
             case WATERSHED_CARDS_HYBRID -> {
@@ -96,7 +95,7 @@ public class WatershedRecognitionStd {
         // The results are nearly identical - actually both methods
         // miss-classify the empty space just under the card in the
         // upper-right.
-        Mat imgResult = sharpen(blk, pOutputFilenamePreamble);
+        Mat imgResult = ImageUtils.sharpen(blk, pOutputFilenamePreamble);
 
         //##PY The Laplacian filtering and the sharpening do make a difference.
         /*
@@ -294,12 +293,10 @@ public class WatershedRecognitionStd {
         blk = invertCardsBackground(pImageROI, pOutputFilenamePreamble);
 
         // The Python example does not use a sharpening Kernel.
-        // The c++ example uses a multi-step sharpening pass but
-        // the sharpening kernel I got from stackoverflow produces.
-        // nearly identical results - actually both methods miss-
-        // classify the empty space just under the card in the
-        // upper-right.
-        Mat sharp = sharpen(blk, pOutputFilenamePreamble);
+        // The standard example uses a multi-step sharpening pass
+        // but the sharpening kernel I got from stackoverflow
+        // produces nearly identical results.
+        Mat sharp = ImageUtils.sharpen(blk, pOutputFilenamePreamble);
 
         // Unlike both official samples we will use the red channel
         // of the sharpened cards image.
@@ -347,39 +344,6 @@ public class WatershedRecognitionStd {
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLK.png");
 
         return src;
-    }
-
-    //**TODO Duplicated in WatershedRecogntionFtc. Put into ImageUtils.
-    //## Imported from IJCenterStageVision.
-    //## This sharpening filter makes a difference in marginal cases.
-    // From OpencvTestbed3 (cpp) GrayscaleTechnique
-    // From https://stackoverflow.com/questions/27393401/opencv-in-java-for-image-filtering
-    private Mat sharpen(Mat pDullMat, String pOutputFilenamePreamble) {
-        int kernelSize = 3;
-        Mat kernel = new Mat(kernelSize, kernelSize, CvType.CV_32F) {
-            {
-                put(0, 0, 0);
-                put(0, 1, -1);
-                put(0, 2, 0);
-
-                put(1, 0, -1);
-                put(1, 1, 5);
-                put(1, 2, -1);
-
-                put(2, 0, 0);
-                put(2, 1, -1);
-                put(2, 2, 0);
-            }
-        };
-
-        Mat sharpMat = new Mat();
-        Imgproc.filter2D(pDullMat, sharpMat, -1, kernel);
-
-        String sharpFilename = pOutputFilenamePreamble + "_SHARP.png";
-        RobotLogCommon.d(TAG, "Writing " + sharpFilename);
-        Imgcodecs.imwrite(sharpFilename, sharpMat);
-
-        return sharpMat;
     }
 
     public static RobotConstants.RecognitionResults prepareAndExecuteWatershed(Mat pGrayImage, Mat pImageROI, Mat pSharp,

@@ -81,6 +81,38 @@ public class ImageUtils {
         return imageROI;
     }
 
+    //## Imported from IJCenterStageVision.
+    //## This sharpening filter makes a difference in marginal cases.
+    // From OpencvTestbed3 (cpp) GrayscaleTechnique
+    // From https://stackoverflow.com/questions/27393401/opencv-in-java-for-image-filtering
+    public static Mat sharpen(Mat pDullMat, String pOutputFilenamePreamble) {
+        int kernelSize = 3;
+        Mat kernel = new Mat(kernelSize, kernelSize, CvType.CV_32F) {
+            {
+                put(0, 0, 0);
+                put(0, 1, -1);
+                put(0, 2, 0);
+
+                put(1, 0, -1);
+                put(1, 1, 5);
+                put(1, 2, -1);
+
+                put(2, 0, 0);
+                put(2, 1, -1);
+                put(2, 2, 0);
+            }
+        };
+
+        Mat sharpMat = new Mat();
+        Imgproc.filter2D(pDullMat, sharpMat, -1, kernel);
+
+        String sharpFilename = pOutputFilenamePreamble + "_SHARP.png";
+        RobotLogCommon.d(TAG, "Writing " + sharpFilename);
+        Imgcodecs.imwrite(sharpFilename, sharpMat);
+
+        return sharpMat;
+    }
+
     // Adjust the median of a grayscale image.
     public static Mat adjustGrayscaleMedian(Mat pGray, int pTarget) {
         int medianGray = getSingleChannelMedian(pGray);
