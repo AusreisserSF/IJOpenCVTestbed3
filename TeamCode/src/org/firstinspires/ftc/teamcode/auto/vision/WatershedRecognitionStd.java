@@ -31,8 +31,22 @@ public class WatershedRecognitionStd {
         testCaseDirectory = pTestCaseDirectory;
     }
 
-    // Port the standard OpenCV Watershed algorithm from the sample at --
-    // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html
+    //**TODO OpenCV has two examples: c++ and Python ...
+    // Reproduce the c++ example and also create a hybrid of both examples
+    // that works with cards - even though the Python example uses coins ...
+
+    // Create a hybrid of the standard c++ example (cards) and the standard
+    // Python example (coins) and adapt the solution to our environment.
+    //!! Note that the c++ example misses the boundary between the two cards
+    // at the center right; this hybrid method is better but not perfect.
+
+    // The official c++ example is here --
+    // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html,
+    // which is implemented in this project as WatershedRecognitionStd,
+    //
+    // The official Python example is here --
+    // https://docs.opencv.org/4.x/d3/db4/tutorial_py_watershed.html
+    //
     // Returns the result of image analysis.
     public RobotConstants.RecognitionResults performWatershedStd(ImageProvider pImageProvider,
                                                                  VisionParameters.ImageParameters pImageParameters,
@@ -65,41 +79,24 @@ public class WatershedRecognitionStd {
         }
     }
 
-        private RobotConstants.RecognitionResults watershedCardsCPP(Mat pImageROI, String pOutputFilenamePreamble) {
+    private RobotConstants.RecognitionResults watershedCardsCPP(Mat pImageROI, String pOutputFilenamePreamble) {
 
         // Adapt the standard example to our environment.
         //!! Note that the example misses the card in the upper right.
 
-            //**TODO Shared by both paths
         //! [black_bg]
         // Change the background from white to black, since that will help later to
         // extract better results during the use of Distance Transform
-        //##PY This works because the cards are R 248, G 245, B 245
-        Mat src = pImageROI.clone();
-        byte[] srcData = new byte[(int) (src.total() * src.channels())];
-        src.get(0, 0, srcData);
-        for (int i = 0; i < src.rows(); i++) {
-            for (int j = 0; j < src.cols(); j++) {
-                if (srcData[(i * src.cols() + j) * 3] == (byte) 255 && srcData[(i * src.cols() + j) * 3 + 1] == (byte) 255
-                        && srcData[(i * src.cols() + j) * 3 + 2] == (byte) 255) {
-                    srcData[(i * src.cols() + j) * 3] = 0;
-                    srcData[(i * src.cols() + j) * 3 + 1] = 0;
-                    srcData[(i * src.cols() + j) * 3 + 2] = 0;
-                }
-            }
-        }
-
-        src.put(0, 0, srcData);
-
-        // Output the image with a black background.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLK.png", src);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLK.png");
+        //##PY This works because the cards are R 248, G 245, B 245.
+        //##PY Shared by both paths.
+        Mat blk = new Mat();
+        blk = invertCardsBackground(pImageROI, pOutputFilenamePreamble);
 
         //##PY Try a sharpening kernel I got from stackoverflow.
         // The results are nearly identical - actually both methods
         // miss-classify the empty space just under the card in the
         // upper-right.
-        Mat imgResult = sharpen(src, pOutputFilenamePreamble);
+        Mat imgResult = sharpen(blk, pOutputFilenamePreamble);
 
         //##PY The Laplacian filtering and the sharpening do make a difference.
         /*
@@ -246,7 +243,7 @@ public class WatershedRecognitionStd {
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK2.png");
         */
 
-            //**TODO Is this part shared also?
+        //**TODO Is this part shared also?
         // Generate random colors
         Random rng = new Random(12345);
         List<Scalar> colors = new ArrayList<>(contours.size());
@@ -293,13 +290,66 @@ public class WatershedRecognitionStd {
 
     private RobotConstants.RecognitionResults watershedCardsHybrid(Mat pImageROI, String pOutputFilenamePreamble) {
 
-        //**TODO call prepareAndExecuteWatershed
+        Mat blk = new Mat();
+        blk = invertCardsBackground(pImageROI, pOutputFilenamePreamble);
 
-        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+        // The Python example does not use a sharpening Kernel.
+        // The c++ example uses a multi-step sharpening pass but
+        // the sharpening kernel I got from stackoverflow produces.
+        // nearly identical results - actually both methods miss-
+        // classify the empty space just under the card in the
+        // upper-right.
+        Mat sharp = sharpen(blk, pOutputFilenamePreamble);
+
+        // Unlike both official samples we will use the red channel
+        // of the sharpened cards image.
+        ArrayList<Mat> channels = new ArrayList<>(3);
+        Core.split(sharp, channels); // red or blue channel. B = 0, G = 1, R = 2
+        Mat redChannel = channels.get(2);
+
+        String redFilename = pOutputFilenamePreamble + "_RED.png";
+        Imgcodecs.imwrite(redFilename, redChannel);
+        RobotLogCommon.d(TAG, "Writing " + redFilename);
+
+        // Both standard examples use OTSU but we get better results (the
+        // interiors of the cards go to white) with a straight binary
+        // threshold.
+        Mat bw = new Mat();
+        Imgproc.threshold(redChannel, bw, 175, 255, Imgproc.THRESH_BINARY);
+
+        return prepareAndExecuteWatershed(redChannel, pImageROI, sharp, 175, pOutputFilenamePreamble);
     }
 
+    // Source: c++ example - specific to the cards image.
+    //! [black_bg]
+    // Change the background from white to black, since that will help later to
+    // extract better results during the use of Distance Transform
+    //##PY This works because the cards are R 248, G 245, B 245
+    private Mat invertCardsBackground(Mat pImageROI, String pOutputFilenamePreamble) {
+        Mat src = pImageROI.clone();
+        byte[] srcData = new byte[(int) (src.total() * src.channels())];
+        src.get(0, 0, srcData);
+        for (int i = 0; i < src.rows(); i++) {
+            for (int j = 0; j < src.cols(); j++) {
+                if (srcData[(i * src.cols() + j) * 3] == (byte) 255 && srcData[(i * src.cols() + j) * 3 + 1] == (byte) 255
+                        && srcData[(i * src.cols() + j) * 3 + 2] == (byte) 255) {
+                    srcData[(i * src.cols() + j) * 3] = 0;
+                    srcData[(i * src.cols() + j) * 3 + 1] = 0;
+                    srcData[(i * src.cols() + j) * 3 + 2] = 0;
+                }
+            }
+        }
 
-        //**TODO Duplicated in WatershedRecogntionFtc. Put into ImageUtils.
+        src.put(0, 0, srcData);
+
+        // Output the image with a black background.
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLK.png", src);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLK.png");
+
+        return src;
+    }
+
+    //**TODO Duplicated in WatershedRecogntionFtc. Put into ImageUtils.
     //## Imported from IJCenterStageVision.
     //## This sharpening filter makes a difference in marginal cases.
     // From OpencvTestbed3 (cpp) GrayscaleTechnique
