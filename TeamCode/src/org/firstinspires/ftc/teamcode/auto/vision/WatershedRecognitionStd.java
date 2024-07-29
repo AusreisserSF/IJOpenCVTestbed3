@@ -1,5 +1,6 @@
 package org.firstinspires.ftc.teamcode.auto.vision;
 
+import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.TimeStamp;
@@ -19,7 +20,7 @@ public class WatershedRecognitionStd {
     private static final String TAG = WatershedRecognitionStd.class.getSimpleName();
 
     public enum WatershedRecognitionPath {
-        CPP, HYBRID
+        WATERSHED_CARDS_CPP, WATERSHED_CARDS_HYBRID
     }
 
     private final String testCaseDirectory;
@@ -53,13 +54,28 @@ public class WatershedRecognitionStd {
         RobotLogCommon.d(TAG, "Recognition path " + pWatershedRecognitionPath);
 
         // Adapt the standard example to our environment.
+        switch (pWatershedRecognitionPath) {
+            case WATERSHED_CARDS_CPP -> {
+                return watershedCardsCPP(imageROI, outputFilenamePreamble);
+            }
+            case WATERSHED_CARDS_HYBRID -> {
+                return watershedCardsHybrid(imageROI, outputFilenamePreamble);
+            }
+            default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
+        }
+    }
+
+        private RobotConstants.RecognitionResults watershedCardsCPP(Mat pImageROI, String pOutputFilenamePreamble) {
+
+        // Adapt the standard example to our environment.
         //!! Note that the example misses the card in the upper right.
 
+            //**TODO Shared by both paths
         //! [black_bg]
         // Change the background from white to black, since that will help later to
         // extract better results during the use of Distance Transform
         //##PY This works because the cards are R 248, G 245, B 245
-        Mat src = imageROI.clone();
+        Mat src = pImageROI.clone();
         byte[] srcData = new byte[(int) (src.total() * src.channels())];
         src.get(0, 0, srcData);
         for (int i = 0; i < src.rows(); i++) {
@@ -76,14 +92,14 @@ public class WatershedRecognitionStd {
         src.put(0, 0, srcData);
 
         // Output the image with a black background.
-        Imgcodecs.imwrite(outputFilenamePreamble + "_BLK.png", src);
-        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_BLK.png");
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLK.png", src);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLK.png");
 
         //##PY Try a sharpening kernel I got from stackoverflow.
         // The results are nearly identical - actually both methods
         // miss-classify the empty space just under the card in the
         // upper-right.
-        Mat imgResult = sharpen(src, outputFilenamePreamble);
+        Mat imgResult = sharpen(src, pOutputFilenamePreamble);
 
         //##PY The Laplacian filtering and the sharpening do make a difference.
         /*
@@ -132,8 +148,8 @@ public class WatershedRecognitionStd {
         Imgproc.threshold(bw, bw, 40, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
 
         // Output the thresholded image.
-        Imgcodecs.imwrite(outputFilenamePreamble + "_THR.png", bw);
-        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_THR.png");
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_THR.png", bw);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_THR.png");
         //! [bin]
 
         //! [dist]
@@ -150,8 +166,8 @@ public class WatershedRecognitionStd {
         distDisplayScaled.convertTo(distDisplay, CvType.CV_8U);
 
         // Output the transformed image.
-        Imgcodecs.imwrite(outputFilenamePreamble + "_DIST.png", distDisplay);
-        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_DIST.png");
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_DIST.png", distDisplay);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
         //! [dist]
 
         //! [peaks]
@@ -167,8 +183,8 @@ public class WatershedRecognitionStd {
         Core.multiply(distDisplay2, new Scalar(255), distDisplay2);
 
         // Output the foreground peaks.
-        Imgcodecs.imwrite(outputFilenamePreamble + "_PEAK.png", distDisplay2);
-        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_PEAK.png");
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_PEAK.png", distDisplay2);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_PEAK.png");
         //! [peaks]
 
         //! [seeds]
@@ -183,10 +199,10 @@ public class WatershedRecognitionStd {
         Imgproc.findContours(dist_8u, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
         //#PY added - output the contours.
-        Mat contoursOut = imageROI.clone();
+        Mat contoursOut = pImageROI.clone();
         ShapeDrawing.drawShapeContours(contours, contoursOut);
-        Imgcodecs.imwrite(outputFilenamePreamble + "_CON.png", contoursOut);
-        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_CON.png");
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON.png", contoursOut);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON.png");
 
         // Create the marker image for the watershed algorithm
         Mat markers = Mat.zeros(dist.size(), CvType.CV_32S);
@@ -207,8 +223,8 @@ public class WatershedRecognitionStd {
         markersScaled.convertTo(markersDisplay, CvType.CV_8U);
 
         // Output the markers.
-        Imgcodecs.imwrite(outputFilenamePreamble + "_MARK.png", markersDisplay);
-        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_MARK.png");
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK.png", markersDisplay);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK.png");
 
         Imgproc.circle(markers, new Point(5, 5), 3, new Scalar(255, 255, 255), -1);
         //! [seeds]
@@ -230,6 +246,7 @@ public class WatershedRecognitionStd {
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK2.png");
         */
 
+            //**TODO Is this part shared also?
         // Generate random colors
         Random rng = new Random(12345);
         List<Scalar> colors = new ArrayList<>(contours.size());
@@ -267,14 +284,22 @@ public class WatershedRecognitionStd {
         dst.put(0, 0, dstData);
 
         // Visualize the final image
-        Imgcodecs.imwrite(outputFilenamePreamble + "_WS.png", dst);
-        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "WS.png");
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "WS.png");
         //! [watershed]
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
-    //**TODO Duplicated in WatershedRecogntionFtc. Put into ImageUtils.
+    private RobotConstants.RecognitionResults watershedCardsHybrid(Mat pImageROI, String pOutputFilenamePreamble) {
+
+        //**TODO call prepareAndExecuteWatershed
+
+        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+    }
+
+
+        //**TODO Duplicated in WatershedRecogntionFtc. Put into ImageUtils.
     //## Imported from IJCenterStageVision.
     //## This sharpening filter makes a difference in marginal cases.
     // From OpencvTestbed3 (cpp) GrayscaleTechnique
