@@ -21,8 +21,7 @@ public class WatershedRecognitionFtc {
     private static final String TAG = WatershedRecognitionFtc.class.getSimpleName();
 
     public enum WatershedRecognitionPath {
-        WATERSHED_LAGANIERE, WATERSHED_MEDIUM, WATERSHED_HYBRID,
-        WATERSHED_CARDS
+        WATERSHED_HYBRID, WATERSHED_CARDS
     }
 
     private final RobotConstants.Alliance alliance;
@@ -74,13 +73,6 @@ public class WatershedRecognitionFtc {
 
         // Adapt the standard example to our environment.
         switch (pWatershedRecognitionPath) {
-            // Use a switch by convention in case we have more paths in the future.
-            case WATERSHED_LAGANIERE -> {
-                return watershedLaganiere(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
-            }
-            case WATERSHED_MEDIUM -> {
-                return watershedMedium(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
-            }
             case WATERSHED_HYBRID -> {
                 return watershedHybrid(imageROI, outputFilenamePreamble, pWatershedParametersFtc.watershedDistanceParameters);
             }
@@ -91,257 +83,10 @@ public class WatershedRecognitionFtc {
         }
     }
 
-    //**TODO The post on medium.com is actually a copy of the OpenCV standard
-    // version for Python. Both use the same image of coins.
-    // https://docs.opencv.org/4.x/d3/db4/tutorial_py_watershed.html
-    private RobotConstants.RecognitionResults watershedMedium(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWwatershedDistanceParameters) {
-
-        // Use the grayscale and pixel count criteria parameters for the current alliance.
-        VisionParameters.GrayParameters allianceGrayParameters;
-        switch (alliance) {
-            case RED -> allianceGrayParameters = pWwatershedDistanceParameters.redGrayParameters;
-            case BLUE -> allianceGrayParameters = pWwatershedDistanceParameters.blueGrayParameters;
-            default ->
-                    throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
-        }
-
-        //##PY The Laplacian filtering and the sharpening in the OpenCV example
-        // do make a difference but they can be replaced by a simple sharpening
-        // kernel.
-        Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
-
-        // Split the BGR image into its components; see the comments above the method.
-        Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
-
-        // Normalize lighting to a known good value.
-        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
-
-        // Follow medium.com and threshold the grayscale (in our case adjusted)
-        // to start the segmentation of the image.
-        Mat thresholded = new Mat(); // output binary image
-        Imgproc.threshold(adjustedGray, thresholded,
-                Math.abs(allianceGrayParameters.threshold_low),    // threshold value
-                255,   // white
-                Imgproc.THRESH_BINARY); // thresholding type
-        RobotLogCommon.v(TAG, "Threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
-
-        String thrFilename = pOutputFilenamePreamble + "_THR.png";
-        Imgcodecs.imwrite(thrFilename, thresholded);
-        RobotLogCommon.d(TAG, "Writing " + thrFilename);
-
-        // Follow medium.com and remove noise by performing two morphological
-        // openings on the thresholded image.
-        Mat opened = new Mat();
-        Mat openKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.morphologyEx(thresholded, opened, Imgproc.MORPH_OPEN, openKernel, new Point(-1, -1), 2);
-
-        String openedFilename = pOutputFilenamePreamble + "_OPEN.png";
-        Imgcodecs.imwrite(openedFilename, opened);
-        RobotLogCommon.d(TAG, "Writing " + openedFilename);
-
-        // Follow medium.com and perform dilation for background identification:
-        // input = opening, output -> sure_bg
-        //# sure background area [##PY i.e. the black portions of the sure_bg image]
-        //        sure_bg = cv2.dilate(opening, kernel, iterations=3)
-        Mat sure_bg = new Mat();
-        Imgproc.dilate(opened, sure_bg, openKernel, new Point(-1, -1), 3);
-
-        String bgFilename = pOutputFilenamePreamble + "_BG.png";
-        Imgcodecs.imwrite(bgFilename, sure_bg);
-        RobotLogCommon.d(TAG, "Writing " + bgFilename);
-
-        // Follow medium.com and find the sure foreground area
-        //        dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2,5)
-        //        ret, sure_fg = cv2.threshold(dist_transform, 0.7 * dist_transform.max(), 255, 0)
-
-        // The distance identifies regions that are likely to be in
-        // the foreground.
-        //! [dist]
-        // Perform the distance transform algorithm. Imgproc.DIST_L2
-        // is a flag for Euclidean distance. Output is 32FC1.
-        Mat dist = new Mat();
-        Imgproc.distanceTransform(opened, dist, Imgproc.DIST_L2, 3);
-
-        //##PY The normalization steps in the OpenCV example are not necessary
-        // - just normalize to the range of 0 - 255.
-
-        Core.normalize(dist, dist, 0.0, 255.0, Core.NORM_MINMAX);
-        Mat dist_8u = new Mat();
-        dist.convertTo(dist_8u, CvType.CV_8U);
-
-        // Output the transformed image.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_DIST.png", dist_8u);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
-        //! [dist]
-
-        // Follow medium.com
-        // find the sure foreground area
-
-        //! [peaks]
-        // Threshold to obtain the peaks.
-        // These will be the markers for the foreground objects.
-        //##PY Since we've already normalized to a range of 0 - 255 we can replace this
-        // Imgproc.threshold(dist, dist, 0.4, 1.0, Imgproc.THRESH_BINARY);
-        Mat sure_fg = new Mat();
-        Imgproc.threshold(dist_8u, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
-
-        // From the standard C++ example - but not Python.
-        // Dilate a bit the thresholded image
-        Mat dilationKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.dilate(sure_fg, sure_fg, dilationKernel);
-
-        // Output the foreground peaks.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_FG.png", sure_fg);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_FG.png");
-        //! [peaks]
-
-        //! [seeds]
-        //##PY Skip the conversion steps in the OpenCV example because we've
-        // already created the 8-bit Mat dist_8u.
-
-        // Find the sure foreground objects.
-        //## medium.com uses connectedComponents; the standard example uses findContours.
-        List<MatOfPoint> contours = new ArrayList<>();
-        Mat hierarchy = new Mat();
-        Imgproc.findContours(sure_fg, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-
-        //#PY added - output the contours.
-        Mat contoursOut = pImageROI.clone();
-        ShapeDrawing.drawShapeContours(contours, contoursOut);
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON.png", contoursOut);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON.png");
-
-        // Follow medium.com
-        // find unknown regions
-        //  sure_fg = np.uint8(sure_fg)
-        //  unknown = cv2.subtract(sure_bg, sure_fg)
-        Mat unknown = new Mat();
-        Core.subtract(sure_bg, sure_fg, unknown);
-
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_UNK.png", unknown);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_UNK.png");
-
-        // Medium.com uses connectedComponents to initialize its markers
-        // but we'll follow the standard example, which uses the foreground
-        // contours.
-        /*
-        Label the sure_bg, sure_fg and unknown regions
-        # Marker labelling
-        # Connected Components determines the connectivity of blob-like regions in a binary image.
-        ret, markers = cv2.connectedComponents(sure_fg)
-
-        # Add one to all labels so that sure background is not 0, but 1
-        markers = markers+1
-
-        # Now, mark the region of unknown with zero
-        markers[unknown==255] = 0
-         */
-
-        /*
-        Also, we want the sure background to be labeled differently from
-        the sure foreground, we add 1 to all the labels in the marker image.
-        After this operation, sure background pixels are labeled as 1, and
-        the sure foreground pixels are labeled starting from 2.
-         */
-
-        // Create the marker image for the watershed algorithm.
-        // # Add one to all labels so that sure background is not 0, but 1
-        // markers = markers+1
-        //**TODO ?Follow Laganiere and initialize the sure background to 128
-        // for visibility. Change indexes below.
-        Mat markers = Mat.ones(dist.size(), CvType.CV_32S);
-
-        // Draw the foreground markers
-        for (int i = 0; i < contours.size(); i++) {
-            Imgproc.drawContours(markers, contours, i, new Scalar(i + 2), -1);
-        }
-
-        // Follow medium.com
-        // # Now, mark the region of unknown with zero
-        // markers[unknown==255] = 0
-
-        // Since we don't have that nice Python syntax,
-        // we need to iterate through the Mat of unknowns and for every
-        // white (255) value, set the marker at the some location to 0.
-        // See https://answers.opencv.org/question/5/how-to-get-and-modify-the-pixel-of-mat-in-java/?answer=8#post-id-8
-        /*
-        Mat m = ...  // assuming it's of CV_8U type
-        byte buff[] = new byte[m.total() * m.channels()];
-        m.get(0, 0, buff);
-        // working with buff
-        // ...
-        m.put(0, 0, buff);
-         */
-
-        // The number of elements in these two arrays should be the same.
-        byte[] unknownData = new byte[(int) (unknown.total() * unknown.channels())];
-        int[] markerData = new int[(int) (markers.total() * markers.channels())];
-        int numMarkerRows = markers.rows();
-        int numMarkerCols = markers.cols();
-        unknown.get(0, 0, unknownData);
-        markers.get(0, 0, markerData);
-        int sharedIndex;
-        for (int i = 0; i < numMarkerRows; i++) {
-            for (int j = 0; j < numMarkerCols; j++) {
-                sharedIndex = (i * numMarkerCols) + j;
-                if ((unknownData[sharedIndex] & 0xff) == 255)
-                    markerData[sharedIndex] = 0;
-            }
-        }
-
-        markers.put(0, 0, markerData); // back into Mat
-
-        //! [watershed]
-        // Perform the watershed algorithm
-        Imgproc.watershed(sharp, markers);
-
-        // Generate random colors
-        Random rng = new Random(12345);
-        List<Scalar> colors = new ArrayList<>(contours.size());
-        for (int i = 0; i < contours.size(); i++) {
-            int b = rng.nextInt(256);
-            int g = rng.nextInt(256);
-            int r = rng.nextInt(256);
-            colors.add(new Scalar(b, g, r));
-        }
-
-        // Create the result image
-        Mat dst = Mat.zeros(markers.size(), CvType.CV_8UC3);
-        byte[] dstData = new byte[(int) (dst.total() * dst.channels())];
-        dst.get(0, 0, dstData);
-
-        // Fill labeled objects with random colors.
-        int[] markersData = new int[(int) (markers.total() * markers.channels())];
-        markers.get(0, 0, markersData);
-        for (int i = 0; i < markers.rows(); i++) {
-            for (int j = 0; j < markers.cols(); j++) {
-                int index = markersData[i * markers.cols() + j];
-                // watershed object markers start at 2
-                if (index >= 2) {
-                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 2).val[0];
-                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 2).val[1];
-                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 2).val[2];
-                } else {
-                    dstData[(i * dst.cols() + j) * 3 + 0] = 0;
-                    dstData[(i * dst.cols() + j) * 3 + 1] = 0;
-                    dstData[(i * dst.cols() + j) * 3 + 2] = 0;
-                }
-            }
-        }
-
-        dst.put(0, 0, dstData);
-
-        // Visualize the final image
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_WS.png");
-        //! [watershed]
-
-        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
-    }
-
+    //**TODO Keep (somewhere) for some good techniques - such as drawing
+    // just the -1 boundaries.
     private RobotConstants.RecognitionResults watershedLaganiere(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWatershedDistanceParameters) {
 
-        //**TODO Common to medium and Laganiere.
         // Use the grayscale and pixel count criteria parameters for the current alliance.
         VisionParameters.GrayParameters allianceGrayParameters;
         switch (alliance) {
@@ -374,7 +119,6 @@ public class WatershedRecognitionFtc {
         String thrFilename = pOutputFilenamePreamble + "_THR.png";
         Imgcodecs.imwrite(thrFilename, thresholded);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
-        //**TODO End common to medium and Laganiere.
 
         // Laganiere gets his foreground by eroding the thresholded image.
         Mat sure_fg_lg = new Mat();
@@ -393,8 +137,6 @@ public class WatershedRecognitionFtc {
 
         // Threshold again but invert this time so that all zero bits
         // become gray (128) for visibility.
-        //**TODO This is actually a combination of sure background (128)
-        // and unknown (0).
         Imgproc.threshold(sure_bg_lg, sure_bg_lg, 1, 128,
                 Imgproc.THRESH_BINARY_INV); // thresholding type
 
@@ -453,7 +195,6 @@ public class WatershedRecognitionFtc {
 
     private RobotConstants.RecognitionResults watershedHybrid(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWatershedDistanceParameters) {
 
-        //**TODO Common to medium and Laganiere.
         // Use the grayscale and pixel count criteria parameters for the current alliance.
         VisionParameters.GrayParameters allianceGrayParameters;
         switch (alliance) {
@@ -476,45 +217,40 @@ public class WatershedRecognitionFtc {
 
         // Follow medium.com and threshold the grayscale (in our case adjusted)
         // to start the segmentation of the image.
-        Mat thresholded = new Mat(); // output binary image
-        Imgproc.threshold(adjustedGray, thresholded,
+        Mat bw = new Mat(); // output binary image
+        Imgproc.threshold(adjustedGray, bw,
                 Math.abs(allianceGrayParameters.threshold_low),    // threshold value
                 255,   // white
                 Imgproc.THRESH_BINARY); // thresholding type
         RobotLogCommon.v(TAG, "Threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
 
+        // Output the thresholded image.
         String thrFilename = pOutputFilenamePreamble + "_THR.png";
-        Imgcodecs.imwrite(thrFilename, thresholded);
+        Imgcodecs.imwrite(thrFilename, bw);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
-        //**TODO End common to medium and Laganiere.
+        //! [bin]
 
-        //**TODO Use medium for getting the foreground image via
-        // distanceTransform.
-        // Follow medium.com and remove noise by performing two morphological
-        // openings on the thresholded image.
-        Mat opened = new Mat();
-        Mat openKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.morphologyEx(thresholded, opened, Imgproc.MORPH_OPEN, openKernel, new Point(-1, -1), 2);
+        // Both Python examples perform two morphological openings but the
+        // c++ example does not.
 
-        String openedFilename = pOutputFilenamePreamble + "_OPEN.png";
-        Imgcodecs.imwrite(openedFilename, opened);
-        RobotLogCommon.d(TAG, "Writing " + openedFilename);
+        // Follow the Python example and perform dilation for background identification.
+        Mat sure_bg = new Mat();
+        Mat dilateKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.dilate(bw, sure_bg, dilateKernel, new Point(-1, -1), 3);
 
-        // Follow medium.com and find the sure foreground area
-        //        dist_transform = cv2.distanceTransform(opening, cv2.DIST_L2,5)
-        //        ret, sure_fg = cv2.threshold(dist_transform, 0.7 * dist_transform.max(), 255, 0)
+        String bgFilename = pOutputFilenamePreamble + "_BG.png";
+        Imgcodecs.imwrite(bgFilename, sure_bg);
+        RobotLogCommon.d(TAG, "Writing " + bgFilename);
 
-        // The distance identifies regions that are likely to be in
-        // the foreground.
         //! [dist]
-        // Perform the distance transform algorithm. Imgproc.DIST_L2
-        // is a flag for Euclidean distance. Output is 32FC1.
+        // Follow both examples and perform the distance transform
+        // algorithm. Imgproc.DIST_L2 is a flag for Euclidean distance.
+        // Output is 32FC1.
         Mat dist = new Mat();
-        Imgproc.distanceTransform(opened, dist, Imgproc.DIST_L2, 3);
+        Imgproc.distanceTransform(bw, dist, Imgproc.DIST_L2, 3);
 
-        //##PY The normalization steps in the OpenCV example are not necessary
+        //##PY The normalization steps in the c++ example are not necessary
         // - just normalize to the range of 0 - 255.
-
         Core.normalize(dist, dist, 0.0, 255.0, Core.NORM_MINMAX);
         Mat dist_8u = new Mat();
         dist.convertTo(dist_8u, CvType.CV_8U);
@@ -524,107 +260,144 @@ public class WatershedRecognitionFtc {
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
         //! [dist]
 
-        // Follow medium.com
-        // find the sure foreground area
-
         //! [peaks]
-        // Threshold to obtain the peaks.
+        // Follow the c++ example and threshold to obtain the peaks.
         // These will be the markers for the foreground objects.
         //##PY Since we've already normalized to a range of 0 - 255 we can replace this
         // Imgproc.threshold(dist, dist, 0.4, 1.0, Imgproc.THRESH_BINARY);
         Mat sure_fg = new Mat();
         Imgproc.threshold(dist_8u, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
 
-        //##PY The dilation steps in the OpenCV example are not necessary.
+        // From the c++ example. The Python example does not do this.
+        // Dilate a bit the thresholded image.
+        Mat dilationKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.dilate(sure_fg, sure_fg, dilationKernel);
 
         // Output the foreground peaks.
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_FG.png", sure_fg);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_FG.png");
         //! [peaks]
 
-        //**TODO Use Laganiere for a single image that combines the
-        // sure background (128) and the unknown areas.
-        // Laganiere gets his background by dilating the thresholded
-        // binary image 4 times and then thresholding again.
-        Mat sure_bg_lg = new Mat();
-        Mat dilateKernel_lg = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.dilate(thresholded, sure_bg_lg, dilateKernel_lg, new Point(-1, -1), 4);
+        //! [seeds]
+        //##PY Skip the conversion steps in the c++ example because we've
+        // already created the 8-bit Mat dist_8u.
 
-        // Threshold again but invert this time so that all zero bits
-        // become gray (128) for visibility.
-        //**TODO This is actually a combination of sure background (128)
-        // and unknown (0).
-        Imgproc.threshold(sure_bg_lg, sure_bg_lg, 1, 128,
-                Imgproc.THRESH_BINARY_INV); // thresholding type
+        // At last find the sure foreground objects.
+        // The Python example uses connectedComponents; the c++ example uses findContours.
+        List<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(sure_fg, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
 
-        String bg_lgFilename = pOutputFilenamePreamble + "_BG_LG.png";
-        Imgcodecs.imwrite(bg_lgFilename, sure_bg_lg);
-        RobotLogCommon.d(TAG, "Writing " + bg_lgFilename);
+        //#PY added - output the contours.
+        Mat contoursOut = pImageROI.clone();
+        ShapeDrawing.drawShapeContours(contours, contoursOut);
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON.png", contoursOut);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON.png");
 
-        // Laganiere does not do a distance transform.
-        // Laganiere obtains the markers by adding the sure foreground
-        // and the sure background.
-        Mat markers_lg = new Mat();
-        Core.add(sure_fg, sure_bg_lg, markers_lg);
+        // Follow the Python example to find the unknown regions
+        //  sure_fg = np.uint8(sure_fg)
+        //  unknown = cv2.subtract(sure_bg, sure_fg)
+        Mat unknown = new Mat();
+        Core.subtract(sure_bg, sure_fg, unknown);
 
-        // Output the Laganiere markers.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK_LG.png", markers_lg);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK_LG.png");
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_UNK.png", unknown);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_UNK.png");
 
-        // Convert the Laganiere markers to 32 bits as required by the watershed.
-        Mat markers32_lg = new Mat();
-        markers_lg.convertTo(markers32_lg, CvType.CV_32S);
+        // Create the markers for the watershed algorithm. From the comments
+        // in the Python example: "The regions we know for sure (whether
+        // foreground or background) are labelled with any positive integers,
+        // but different integers, and the areas we don't know for sure are
+        // just left as zero." So we'll start with markers initialized to 1
+        // for the sure background.
+        Mat markers = Mat.ones(dist.size(), CvType.CV_32S);
+
+        // Follow the c++ example and dDraw the foreground markers.
+        for (int i = 0; i < contours.size(); i++) {
+            Imgproc.drawContours(markers, contours, i, new Scalar(i + 2), -1);
+        }
+
+        // Follow the Python example --
+        // # Now, mark the region of unknown with zero
+        // markers[unknown==255] = 0
+
+        // Since we don't have that nice Python syntax,
+        // we need to iterate through the Mat of unknowns and for every
+        // white (255) value, set the marker at the some location to 0.
+        // See https://answers.opencv.org/question/5/how-to-get-and-modify-the-pixel-of-mat-in-java/?answer=8#post-id-8
+
+        // The number of elements in these two arrays should be the same.
+        byte[] unknownData = new byte[(int) (unknown.total() * unknown.channels())];
+        int[] markerData = new int[(int) (markers.total() * markers.channels())];
+        int numMarkerRows = markers.rows();
+        int numMarkerCols = markers.cols();
+        unknown.get(0, 0, unknownData);
+        markers.get(0, 0, markerData);
+        int sharedIndex;
+        for (int i = 0; i < numMarkerRows; i++) {
+            for (int j = 0; j < numMarkerCols; j++) {
+                sharedIndex = (i * numMarkerCols) + j;
+                if ((unknownData[sharedIndex] & 0xff) == 255) // Java doesn't have an unsigned byte!
+                    markerData[sharedIndex] = 0;
+            }
+        }
+
+        markers.put(0, 0, markerData); // back into Mat
 
         //! [watershed]
         // Perform the watershed algorithm
-        Imgproc.watershed(sharp, markers32_lg);
+        Imgproc.watershed(sharp, markers);
 
-        // Create the result image, which in this case will show the
-        // outlines of the labeled objects.
-        Mat dst = Mat.zeros(markers32_lg.size(), CvType.CV_32S);
-        int[] dstData = new int[(int) (dst.total() * dst.channels())];
+        // Generate random colors
+        Random rng = new Random(12345);
+        List<Scalar> colors = new ArrayList<>(contours.size());
+        for (int i = 0; i < contours.size(); i++) {
+            int b = rng.nextInt(256);
+            int g = rng.nextInt(256);
+            int r = rng.nextInt(256);
+            colors.add(new Scalar(b, g, r));
+        }
+
+        // Create the result image
+        Mat dst = Mat.zeros(markers.size(), CvType.CV_8UC3);
+        byte[] dstData = new byte[(int) (dst.total() * dst.channels())];
         dst.get(0, 0, dstData);
 
-        int[] markersData = new int[(int) (markers32_lg.total() * markers32_lg.channels())];
-        markers32_lg.get(0, 0, markersData);
-        for (int i = 0; i < markers32_lg.rows(); i++) {
-            for (int j = 0; j < markers32_lg.cols(); j++) {
-                int index = markersData[i * markers32_lg.cols() + j];
-                // watershed boundaries are -1.
-                if (index == -1)
-                    dstData[(i * dst.cols() + j)] = 255;
+        // Fill labeled objects with random colors.
+        int[] markersData = new int[(int) (markers.total() * markers.channels())];
+        markers.get(0, 0, markersData);
+        for (int i = 0; i < markers.rows(); i++) {
+            for (int j = 0; j < markers.cols(); j++) {
+                int index = markersData[i * markers.cols() + j];
+                // watershed object markers start at 2
+                if (index >= 2) {
+                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 2).val[0];
+                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 2).val[1];
+                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 2).val[2];
+                } else {
+                    dstData[(i * dst.cols() + j) * 3 + 0] = 0;
+                    dstData[(i * dst.cols() + j) * 3 + 1] = 0;
+                    dstData[(i * dst.cols() + j) * 3 + 2] = 0;
+                }
             }
         }
 
         dst.put(0, 0, dstData);
-        dst.convertTo(dst, CvType.CV_8UC1);
 
         // Visualize the final image
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS_LG.png", dst);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_WS_LG.png");
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_WS.png");
         //! [watershed]
-
-        //**TODO Try findContours on the image with the outlines of the watershed.
-        //**TODO Didn't work - it drew a contour around the entire ROI. !!Because
-        // the watershed image has a white boundary!! So use RETR.TREE to get all
-        // contours.
-        List<MatOfPoint> contours = new ArrayList<>();
-        Mat hierarchy = new Mat();
-        Imgproc.findContours(dst, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
-
-        // Output the contours.
-        Mat contoursOut = pImageROI.clone();
-        ShapeDrawing.drawShapeContours(contours, contoursOut);
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON_LG.png", contoursOut);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON_LG.png");
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
-    //**TODO Put WatershedRecognitionStd and this hybrid into its own class.
-    // Don't need the WatershedParameters.xml file.
+    //**TODO For recognition of the cards put WatershedRecognitionStd and this
+    // hybrid into the same class.
+    // Don't need the alliance or WatershedParameters.xml file.
+    //**TODO However, the hybrid and the WatershedRecogntionFtc do share common
+    // code.
 
-    // Create a hybrid of the standard c++ example (cards) and the standard
+    //**TODO Create a hybrid of the standard c++ example (cards) and the standard
     // Python example (coins) and adapt the solution to our environment.
     //!! Note that the c++ example misses the boundary between the two cards
     // at the center right; this hybrid method is better but not perfect.
@@ -894,6 +667,7 @@ public class WatershedRecognitionFtc {
         return adjustedGray;
     }
 
+    //**TODO Duplicated in WatershedRecogntionFtc. Put into ImageUtils.
     //## Imported from IJCenterStageVision.
     //## This sharpening filter makes a difference in marginal cases.
     // From OpencvTestbed3 (cpp) GrayscaleTechnique
