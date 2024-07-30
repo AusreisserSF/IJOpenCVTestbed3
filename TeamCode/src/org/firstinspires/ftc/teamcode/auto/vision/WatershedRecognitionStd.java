@@ -69,7 +69,7 @@ public class WatershedRecognitionStd {
         // Adapt the standard example to our environment.
         switch (pWatershedRecognitionPath) {
             case WATERSHED_CARDS_STD -> {
-                return watershedCardsCPP(imageROI, outputFilenamePreamble);
+                return watershedCardsStd(imageROI, outputFilenamePreamble);
             }
             case WATERSHED_CARDS_HYBRID -> {
                 return watershedCardsHybrid(imageROI, outputFilenamePreamble);
@@ -78,7 +78,7 @@ public class WatershedRecognitionStd {
         }
     }
 
-    private RobotConstants.RecognitionResults watershedCardsCPP(Mat pImageROI, String pOutputFilenamePreamble) {
+    private RobotConstants.RecognitionResults watershedCardsStd(Mat pImageROI, String pOutputFilenamePreamble) {
 
         // Adapt the standard example to our environment.
         //!! Note that the example misses the card in the upper right.
@@ -88,8 +88,7 @@ public class WatershedRecognitionStd {
         // extract better results during the use of Distance Transform
         //##PY This works because the cards are R 248, G 245, B 245.
         //##PY Shared by both paths.
-        Mat blk = new Mat();
-        blk = invertCardsBackground(pImageROI, pOutputFilenamePreamble);
+        Mat blk = invertCardsBackground(pImageROI, pOutputFilenamePreamble);
 
         //##PY Try a sharpening kernel I got from stackoverflow.
         // The results are nearly identical - actually both methods
@@ -242,55 +241,14 @@ public class WatershedRecognitionStd {
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK2.png");
         */
 
-        //**TODO Is this part shared also?
-        // Generate random colors
-        Random rng = new Random(12345);
-        List<Scalar> colors = new ArrayList<>(contours.size());
-        for (int i = 0; i < contours.size(); i++) {
-            int b = rng.nextInt(256);
-            int g = rng.nextInt(256);
-            int r = rng.nextInt(256);
-
-            colors.add(new Scalar(b, g, r));
-        }
-
-        // Create the result image
-        Mat dst = Mat.zeros(markers.size(), CvType.CV_8UC3);
-        byte[] dstData = new byte[(int) (dst.total() * dst.channels())];
-        dst.get(0, 0, dstData);
-
-        // Fill labeled objects with random colors
-        int[] markersData = new int[(int) (markers.total() * markers.channels())];
-        markers.get(0, 0, markersData);
-        for (int i = 0; i < markers.rows(); i++) {
-            for (int j = 0; j < markers.cols(); j++) {
-                int index = markersData[i * markers.cols() + j];
-                if (index > 0 && index <= contours.size()) {
-                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 1).val[0];
-                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 1).val[1];
-                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 1).val[2];
-                } else {
-                    dstData[(i * dst.cols() + j) * 3 + 0] = 0;
-                    dstData[(i * dst.cols() + j) * 3 + 1] = 0;
-                    dstData[(i * dst.cols() + j) * 3 + 2] = 0;
-                }
-            }
-        }
-
-        dst.put(0, 0, dstData);
-
-        // Visualize the final image
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "WS.png");
-        //! [watershed]
+        outputWatershedResults(markers, contours.size(), pOutputFilenamePreamble);
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
     private RobotConstants.RecognitionResults watershedCardsHybrid(Mat pImageROI, String pOutputFilenamePreamble) {
 
-        Mat blk = new Mat();
-        blk = invertCardsBackground(pImageROI, pOutputFilenamePreamble);
+        Mat blk = invertCardsBackground(pImageROI, pOutputFilenamePreamble);
 
         // The Python example does not use a sharpening Kernel.
         // The standard example uses a multi-step sharpening pass
@@ -479,32 +437,38 @@ public class WatershedRecognitionStd {
         // Perform the watershed algorithm
         Imgproc.watershed(pSharp, markers);
 
+        outputWatershedResults(markers, contours.size(), pOutputFilenamePreamble);
+
+        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+    }
+
+    private static void outputWatershedResults(Mat pMarkers, int pSizeOfContours, String pOutputFilenamePreamble) {
         // Generate random colors
         Random rng = new Random(12345);
-        List<Scalar> colors = new ArrayList<>(contours.size());
-        for (int i = 0; i < contours.size(); i++) {
+        List<Scalar> colors = new ArrayList<>(pSizeOfContours);
+        for (int i = 0; i < pSizeOfContours; i++) {
             int b = rng.nextInt(256);
             int g = rng.nextInt(256);
             int r = rng.nextInt(256);
+
             colors.add(new Scalar(b, g, r));
         }
 
         // Create the result image
-        Mat dst = Mat.zeros(markers.size(), CvType.CV_8UC3);
+        Mat dst = Mat.zeros(pMarkers.size(), CvType.CV_8UC3);
         byte[] dstData = new byte[(int) (dst.total() * dst.channels())];
         dst.get(0, 0, dstData);
 
-        // Fill labeled objects with random colors.
-        int[] markersData = new int[(int) (markers.total() * markers.channels())];
-        markers.get(0, 0, markersData);
-        for (int i = 0; i < markers.rows(); i++) {
-            for (int j = 0; j < markers.cols(); j++) {
-                int index = markersData[i * markers.cols() + j];
-                // watershed object markers start at 2
-                if (index >= 2) {
-                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 2).val[0];
-                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 2).val[1];
-                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 2).val[2];
+        // Fill labeled objects with random colors
+        int[] markersData = new int[(int) (pMarkers.total() * pMarkers.channels())];
+        pMarkers.get(0, 0, markersData);
+        for (int i = 0; i < pMarkers.rows(); i++) {
+            for (int j = 0; j < pMarkers.cols(); j++) {
+                int index = markersData[i * pMarkers.cols() + j];
+                if (index > 0 && index <= pSizeOfContours) {
+                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 1).val[0];
+                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 1).val[1];
+                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 1).val[2];
                 } else {
                     dstData[(i * dst.cols() + j) * 3 + 0] = 0;
                     dstData[(i * dst.cols() + j) * 3 + 1] = 0;
@@ -517,9 +481,8 @@ public class WatershedRecognitionStd {
 
         // Visualize the final image
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_WS.png");
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "WS.png");
         //! [watershed]
-
-        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
+
 }
