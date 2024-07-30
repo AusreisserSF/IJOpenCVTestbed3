@@ -5,6 +5,7 @@ package org.firstinspires.ftc.teamcode.auto.vision;
 import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
+import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -111,6 +112,45 @@ public class ImageUtils {
         Imgcodecs.imwrite(sharpFilename, sharpMat);
 
         return sharpMat;
+    }
+
+    //## Imported from IJCenterStageVision.
+    // Split the original image ROI into its BGR channels. The alliance
+    // determines which channel to pre-process and return. For better
+    // contrast the RED alliance uses the inversion of the blue channel
+    // and the BLUE alliance uses the inversion of the red channel.
+    public static Mat splitAndInvertChannels(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
+        ArrayList<Mat> channels = new ArrayList<>(3);
+        Core.split(pImageROI, channels); // red or blue channel. B = 0, G = 1, R = 2
+        Mat selectedChannel;
+        switch (pAlliance) {
+            case RED -> {
+                // The inversion of the blue channel gives better contrast
+                // than the red channel.
+                selectedChannel = channels.get(0);
+                Core.bitwise_not(selectedChannel, selectedChannel);
+                Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE_INVERTED.png", selectedChannel);
+                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE_INVERTED.png");
+            }
+            case BLUE -> {
+                // The inversion of the red channel gives better contrast
+                // than the blue channel.
+                selectedChannel = channels.get(2);
+                Core.bitwise_not(selectedChannel, selectedChannel);
+                Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_INVERTED.png", selectedChannel);
+                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_INVERTED.png");
+            }
+            default -> throw new AutonomousRobotException(TAG, "Alliance must be RED or BLUE");
+        }
+
+        // Always adjust the grayscale.
+        Mat adjustedGray = adjustGrayscaleMedian(selectedChannel,
+                pGrayParameters.median_target);
+
+        Imgproc.erode(adjustedGray, adjustedGray, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
+        Imgproc.dilate(adjustedGray, adjustedGray, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
+
+        return adjustedGray;
     }
 
     // Adjust the median of a grayscale image.

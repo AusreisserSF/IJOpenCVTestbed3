@@ -372,6 +372,11 @@ public class WatershedRecognitionStd {
         //##PY Skip the conversion steps in the c++ example because we've
         // already created the 8-bit Mat dist_8u.
 
+        //**TODO For comparison try connectedComponents, which is an alternative
+        // to findContours. From the Python example --
+        // " For this we use cv.connectedComponents(). It labels background of the
+        // image with 0, then other objects are labelled with integers starting from 1".
+
         // At last find the sure foreground objects.
         // The Python example uses connectedComponents; the c++ example uses findContours.
         List<MatOfPoint> contours = new ArrayList<>();
