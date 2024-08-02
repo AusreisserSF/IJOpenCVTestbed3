@@ -218,6 +218,7 @@ public class WatershedRecognitionStd {
         markersScaled.convertTo(markersDisplay, CvType.CV_8U);
 
         // Output the markers.
+        //**TODO Need this on the hybrid path also.
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK.png", markersDisplay);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK.png");
 
@@ -406,10 +407,21 @@ public class WatershedRecognitionStd {
         // for the sure background.
         Mat markers = Mat.ones(dist.size(), CvType.CV_32S);
 
-        // Follow the c++ example and dDraw the foreground markers.
+        // Follow the standard example and draw the foreground markers.
         for (int i = 0; i < contours.size(); i++) {
             Imgproc.drawContours(markers, contours, i, new Scalar(i + 2), -1);
         }
+
+        // Draw the markers
+        Mat markersScaled = new Mat();
+        markers.convertTo(markersScaled, CvType.CV_32F);
+        Core.normalize(markersScaled, markersScaled, 1.0, 255.0, Core.NORM_MINMAX);
+        Mat markersDisplay = new Mat();
+        markers.convertTo(markersDisplay, CvType.CV_8U);
+
+        // Output the markers.
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK.png", markersDisplay);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK.png");
 
         // Follow the Python example --
         // # Now, mark the region of unknown with zero
@@ -417,7 +429,7 @@ public class WatershedRecognitionStd {
 
         // Since we don't have that nice Python syntax,
         // we need to iterate through the Mat of unknowns and for every
-        // white (255) value, set the marker at the some location to 0.
+        // white (255) value, set the marker at the same location to 0.
         // See https://answers.opencv.org/question/5/how-to-get-and-modify-the-pixel-of-mat-in-java/?answer=8#post-id-8
 
         // The number of elements in these two arrays should be the same.
@@ -437,6 +449,17 @@ public class WatershedRecognitionStd {
         }
 
         markers.put(0, 0, markerData); // back into Mat
+
+        // Draw the markers again now that the unknowns have been merged in.
+        Mat markersScaled2 = new Mat();
+        markers.convertTo(markersScaled2, CvType.CV_32F);
+        Core.normalize(markersScaled2, markersScaled2, 0.0, 255.0, Core.NORM_MINMAX);
+        Mat markersDisplay2 = new Mat();
+        markersScaled2.convertTo(markersDisplay2, CvType.CV_8U);
+
+        // Output the markers.
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK2.png", markersDisplay2);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK2.png");
 
         //! [watershed]
         // Perform the watershed algorithm
