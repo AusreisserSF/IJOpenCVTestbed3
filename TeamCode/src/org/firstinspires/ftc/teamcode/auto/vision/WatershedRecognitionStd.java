@@ -25,8 +25,6 @@ public class WatershedRecognitionStd {
 
     private final String testCaseDirectory;
 
-    //**TODO Currently limited to the cards image. Will it work with coins?
-
     public WatershedRecognitionStd(String pTestCaseDirectory) {
         testCaseDirectory = pTestCaseDirectory;
     }
