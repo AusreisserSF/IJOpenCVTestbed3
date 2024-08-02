@@ -6,16 +6,16 @@
         <actions>
             <WATERSHED_FTC>
                 <image_parameters>
-                    <image_source>front_webcam_03091048_46194_IMG.png</image_source>
+                    <image_source>front_webcam_03090758_45758_IMG.png</image_source>
                      <resolution>
                         <width>640</width>
                         <height>480</height>
                     </resolution>
                     <image_roi>
-                        <x>20</x>
-                        <y>184</y>
-                        <width>493</width>
-                        <height>241</height>
+                        <x>48</x>
+                        <y>148</y>
+                        <width>486</width>
+                        <height>250</height>
                     </image_roi>
                 </image_parameters>
                 <watershed_recognition>

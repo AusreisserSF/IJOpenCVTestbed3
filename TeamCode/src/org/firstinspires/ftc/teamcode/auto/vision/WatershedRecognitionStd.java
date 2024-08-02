@@ -218,7 +218,6 @@ public class WatershedRecognitionStd {
         markersScaled.convertTo(markersDisplay, CvType.CV_8U);
 
         // Output the markers.
-        //**TODO Need this on the hybrid path also.
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK.png", markersDisplay);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK.png");
 
@@ -229,8 +228,6 @@ public class WatershedRecognitionStd {
         // Perform the watershed algorithm
         Imgproc.watershed(imgResult, markers);
 
-        //##PY This so-called "Markers_V2" image is not used in any further
-        // processing.
         /*
         Mat mark = Mat.zeros(markers.size(), CvType.CV_8U);
         markers.convertTo(mark, CvType.CV_8UC1);
@@ -242,7 +239,47 @@ public class WatershedRecognitionStd {
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK2.png");
         */
 
-        outputWatershedResults(markers, contours.size(), pOutputFilenamePreamble);
+        // Generate random colors
+        int sizeOfContours = contours.size();
+        Random rng = new Random(12345);
+        List<Scalar> colors = new ArrayList<>(sizeOfContours);
+        for (int i = 0; i < sizeOfContours; i++) {
+            int b = rng.nextInt(256);
+            int g = rng.nextInt(256);
+            int r = rng.nextInt(256);
+
+            colors.add(new Scalar(b, g, r));
+        }
+
+        // Create the result image
+        Mat dst = Mat.zeros(markers.size(), CvType.CV_8UC3);
+        byte[] dstData = new byte[(int) (dst.total() * dst.channels())];
+        dst.get(0, 0, dstData);
+
+        // Fill labeled objects with random colors
+        int[] markersData = new int[(int) (markers.total() * markers.channels())];
+        markers.get(0, 0, markersData);
+        for (int i = 0; i < markers.rows(); i++) {
+            for (int j = 0; j < markers.cols(); j++) {
+                int index = markersData[i * markers.cols() + j];
+                if (index > 0 && index <= sizeOfContours) {
+                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 1).val[0];
+                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 1).val[1];
+                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 1).val[2];
+                } else {
+                    dstData[(i * dst.cols() + j) * 3 + 0] = 0;
+                    dstData[(i * dst.cols() + j) * 3 + 1] = 0;
+                    dstData[(i * dst.cols() + j) * 3 + 2] = 0;
+                }
+            }
+        }
+
+        dst.put(0, 0, dstData);
+
+        // Visualize the final image
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "WS.png");
+        //! [watershed]
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
@@ -412,17 +449,6 @@ public class WatershedRecognitionStd {
             Imgproc.drawContours(markers, contours, i, new Scalar(i + 2), -1);
         }
 
-        // Draw the markers
-        Mat markersScaled = new Mat();
-        markers.convertTo(markersScaled, CvType.CV_32F);
-        Core.normalize(markersScaled, markersScaled, 1.0, 255.0, Core.NORM_MINMAX);
-        Mat markersDisplay = new Mat();
-        markers.convertTo(markersDisplay, CvType.CV_8U);
-
-        // Output the markers.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK.png", markersDisplay);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK.png");
-
         // Follow the Python example --
         // # Now, mark the region of unknown with zero
         // markers[unknown==255] = 0
@@ -443,60 +469,56 @@ public class WatershedRecognitionStd {
         for (int i = 0; i < numMarkerRows; i++) {
             for (int j = 0; j < numMarkerCols; j++) {
                 sharedIndex = (i * numMarkerCols) + j;
-                if ((unknownData[sharedIndex] & 0xff) == 255) // Java doesn't have an unsigned byte!
+                if (((int) unknownData[sharedIndex] & 0xff) == 255) // Java doesn't have an unsigned byte!
                     markerData[sharedIndex] = 0;
             }
         }
 
         markers.put(0, 0, markerData); // back into Mat
 
-        // Draw the markers again now that the unknowns have been merged in.
-        Mat markersScaled2 = new Mat();
-        markers.convertTo(markersScaled2, CvType.CV_32F);
-        Core.normalize(markersScaled2, markersScaled2, 0.0, 255.0, Core.NORM_MINMAX);
-        Mat markersDisplay2 = new Mat();
-        markersScaled2.convertTo(markersDisplay2, CvType.CV_8U);
+        // Draw the markers - scaled so that they show - and with the
+        // unknowns merged in. Note that there is only a small difference
+        // between the unknown regions (at level 0) and the background.
+        Mat markersScaled = new Mat();
+        markers.convertTo(markersScaled, CvType.CV_32F);
+        Core.normalize(markersScaled, markersScaled, 0.0, 255.0, Core.NORM_MINMAX);
+        Mat markersDisplay = new Mat();
+        markersScaled.convertTo(markersDisplay, CvType.CV_8U);
 
         // Output the markers.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK2.png", markersDisplay2);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK2.png");
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK.png", markersDisplay);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK.png");
 
         //! [watershed]
         // Perform the watershed algorithm
         Imgproc.watershed(pSharp, markers);
 
-        outputWatershedResults(markers, contours.size(), pOutputFilenamePreamble);
-
-        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
-    }
-
-    private static void outputWatershedResults(Mat pMarkers, int pSizeOfContours, String pOutputFilenamePreamble) {
         // Generate random colors
         Random rng = new Random(12345);
-        List<Scalar> colors = new ArrayList<>(pSizeOfContours);
-        for (int i = 0; i < pSizeOfContours; i++) {
+        List<Scalar> colors = new ArrayList<>(contours.size());
+        for (int i = 0; i < contours.size(); i++) {
             int b = rng.nextInt(256);
             int g = rng.nextInt(256);
             int r = rng.nextInt(256);
-
             colors.add(new Scalar(b, g, r));
         }
 
         // Create the result image
-        Mat dst = Mat.zeros(pMarkers.size(), CvType.CV_8UC3);
+        Mat dst = Mat.zeros(markers.size(), CvType.CV_8UC3);
         byte[] dstData = new byte[(int) (dst.total() * dst.channels())];
         dst.get(0, 0, dstData);
 
-        // Fill labeled objects with random colors
-        int[] markersData = new int[(int) (pMarkers.total() * pMarkers.channels())];
-        pMarkers.get(0, 0, markersData);
-        for (int i = 0; i < pMarkers.rows(); i++) {
-            for (int j = 0; j < pMarkers.cols(); j++) {
-                int index = markersData[i * pMarkers.cols() + j];
-                if (index > 0 && index <= pSizeOfContours) {
-                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 1).val[0];
-                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 1).val[1];
-                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 1).val[2];
+        // Fill labeled objects with random colors.
+        int[] markersData = new int[(int) (markers.total() * markers.channels())];
+        markers.get(0, 0, markersData);
+        for (int i = 0; i < markers.rows(); i++) {
+            for (int j = 0; j < markers.cols(); j++) {
+                int index = markersData[i * markers.cols() + j];
+                // watershed object markers start at 2
+                if (index >= 2) {
+                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 2).val[0];
+                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 2).val[1];
+                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 2).val[2];
                 } else {
                     dstData[(i * dst.cols() + j) * 3 + 0] = 0;
                     dstData[(i * dst.cols() + j) * 3 + 1] = 0;
@@ -509,8 +531,9 @@ public class WatershedRecognitionStd {
 
         // Visualize the final image
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "WS.png");
-        //! [watershed]
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_WS.png");
+
+        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
 }
