@@ -6,20 +6,20 @@
         <actions>
             <WATERSHED_STD>
                 <image_parameters>
-                    <image_source>cards.png</image_source>
+                    <image_source>coins.jpg</image_source>
                     <resolution>
-                        <width>640</width>
-                        <height>480</height>
+                        <width>252</width>
+                        <height>312</height>
                     </resolution>
                     <image_roi>
                         <x>0</x>
                         <y>0</y>
-                        <width>640</width>
-                        <height>480</height>
+                        <width>252</width>
+                        <height>312</height>
                     </image_roi>
                 </image_parameters>
                 <watershed_recognition>
-                    <recognition_path>watershed_cards_hybrid</recognition_path>
+                    <recognition_path>watershed_coins_hybrid</recognition_path>
                 </watershed_recognition>
             </WATERSHED_STD>
         </actions>

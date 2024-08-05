@@ -20,7 +20,8 @@ public class WatershedRecognitionStd {
     private static final String TAG = WatershedRecognitionStd.class.getSimpleName();
 
     public enum WatershedRecognitionPath {
-        WATERSHED_CARDS_STD, WATERSHED_CARDS_HYBRID
+        WATERSHED_CARDS_STD, WATERSHED_CARDS_HYBRID,
+        WATERSHED_COINS_HYBRID
     }
 
     private final String testCaseDirectory;
@@ -36,11 +37,11 @@ public class WatershedRecognitionStd {
     // Reproduce the standard Java example and also create a hybrid of
     // both examples that works with cards.
 
-    //!! Note that the standard example misses the boundary between the
-    // two cards at the center right; our hybrid method is better but
-    // not perfect.
+    //!! Note that the standard Java example misses the boundary between
+    // the two cards at the center right; our hybrid method is much
+    // better.
 
-    // The OpenCV standard example is here --
+    // The OpenCV standard Java example is here --
     // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html,
     // which is implemented in this project as WatershedRecognitionStd,
     //
@@ -64,7 +65,7 @@ public class WatershedRecognitionStd {
         Mat imageROI = ImageUtils.preProcessImage(watershedImage.first, outputFilenamePreamble, pImageParameters);
         RobotLogCommon.d(TAG, "Recognition path " + pWatershedRecognitionPath);
 
-        // Adapt the standard example to our environment.
+        // Adapt the examples to our environment.
         switch (pWatershedRecognitionPath) {
             case WATERSHED_CARDS_STD -> {
                 return watershedCardsStd(imageROI, outputFilenamePreamble);
@@ -72,13 +73,16 @@ public class WatershedRecognitionStd {
             case WATERSHED_CARDS_HYBRID -> {
                 return watershedCardsHybrid(imageROI, outputFilenamePreamble);
             }
+            case WATERSHED_COINS_HYBRID -> {
+                return watershedCoinsHybrid(imageROI, outputFilenamePreamble);
+            }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
         }
     }
 
     private RobotConstants.RecognitionResults watershedCardsStd(Mat pImageROI, String pOutputFilenamePreamble) {
 
-        // Adapt the standard example to our environment.
+        // Adapt the standard Java example to our environment.
         //!! Note that the example misses the card in the upper right.
 
         //! [black_bg]
@@ -287,8 +291,8 @@ public class WatershedRecognitionStd {
         Mat blk = invertCardsBackground(pImageROI, pOutputFilenamePreamble);
 
         // The Python example does not use a sharpening Kernel.
-        // The standard example uses a multi-step sharpening pass
-        // but the sharpening kernel I got from stackoverflow
+        // The standard Java example uses a multi-step sharpening
+        // pass but the sharpening kernel I got from stackoverflow
         // produces nearly identical results.
         Mat sharp = ImageUtils.sharpen(blk, pOutputFilenamePreamble);
 
@@ -302,16 +306,24 @@ public class WatershedRecognitionStd {
         Imgcodecs.imwrite(redFilename, redChannel);
         RobotLogCommon.d(TAG, "Writing " + redFilename);
 
-        // Both standard examples use OTSU but we get better results (the
-        // interiors of the cards go to white) with a straight binary
-        // threshold.
-        Mat bw = new Mat();
-        Imgproc.threshold(redChannel, bw, 175, 255, Imgproc.THRESH_BINARY);
-
-        return prepareAndExecuteWatershed(redChannel, pImageROI, sharp, 175, pOutputFilenamePreamble);
+        return prepareAndExecuteWatershed(redChannel, pImageROI, sharp, 175, Imgproc.THRESH_BINARY, pOutputFilenamePreamble);
     }
 
-    // Source: c++ example - specific to the cards image.
+    private RobotConstants.RecognitionResults watershedCoinsHybrid(Mat pImageROI, String pOutputFilenamePreamble) {
+
+        Mat sharp = ImageUtils.sharpen(pImageROI, pOutputFilenamePreamble);
+
+        Mat gray = new Mat();
+        Imgproc.cvtColor(sharp, gray, Imgproc.COLOR_BGR2GRAY);
+
+        // Output the grayscale image.
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_GRAY.png", gray);
+        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_GRAY.png");
+
+        return prepareAndExecuteWatershed(gray, pImageROI, sharp, 0, Imgproc.THRESH_BINARY_INV | Imgproc.THRESH_OTSU, pOutputFilenamePreamble);
+    }
+
+    // Source: standard Java example - specific to the cards image.
     //! [black_bg]
     // Change the background from white to black, since that will help later to
     // extract better results during the use of Distance Transform
@@ -342,13 +354,14 @@ public class WatershedRecognitionStd {
 
     public static RobotConstants.RecognitionResults prepareAndExecuteWatershed(Mat pGrayImage, Mat pImageROI, Mat pSharp,
                                                                                int pThresholdLow,
+                                                                               int pThresholdType,
                                                                                String pOutputFilenamePreamble) {
 
-        // Both standard examples use OTSU but we get better results (the
-        // interiors of the cards go to white) with a straight binary
-        // threshold.
+        // Both standard examples use OTSU but we get better results
+        // (the interiors of the cards go to white) with a binary
+        // threshold - either inverted or not.
         Mat bw = new Mat();
-        Imgproc.threshold(pGrayImage, bw, pThresholdLow, 255, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(pGrayImage, bw, pThresholdLow, 255, pThresholdType);
 
         // Output the thresholded image.
         String thrFilename = pOutputFilenamePreamble + "_THR.png";
@@ -357,7 +370,19 @@ public class WatershedRecognitionStd {
         //! [bin]
 
         // Both Python examples perform two morphological openings but the
-        // c++ example does not.
+        // standard Java example does not.
+        /*
+        # noise removal
+        kernel = np.ones((3,3),np.uint8)
+        opening = cv.morphologyEx(thresh,cv.MORPH_OPEN,kernel, iterations = 2)
+
+        Mat openKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.morphologyEx(bw, bw, Imgproc.MORPH_OPEN, openKernel, new Point(-1, -1), 2);
+
+        String openFilename = pOutputFilenamePreamble + "_OPEN.png";
+        Imgcodecs.imwrite(openFilename, bw);
+        RobotLogCommon.d(TAG, "Writing " + openFilename);
+         */
 
         // Follow the Python example and perform dilation for background identification.
         Mat sure_bg = new Mat();
@@ -405,8 +430,8 @@ public class WatershedRecognitionStd {
         //! [peaks]
 
         //! [seeds]
-        //##PY Skip the conversion steps in the standard example because we've
-        // already created the 8-bit Mat dist_8u.
+        //##PY Skip the conversion steps in the standard Java example because
+        // we've already created the 8-bit Mat dist_8u.
 
         // At last find the sure foreground objects.
         // The Python example uses connectedComponents; the c++ example uses findContours.
@@ -437,7 +462,7 @@ public class WatershedRecognitionStd {
         // for the sure background.
         Mat markers = Mat.ones(dist.size(), CvType.CV_32S);
 
-        // Follow the standard example and draw the foreground markers.
+        // Follow the standard Java example and draw the foreground markers.
         for (int i = 0; i < contours.size(); i++) {
             Imgproc.drawContours(markers, contours, i, new Scalar(i + 2), -1);
         }

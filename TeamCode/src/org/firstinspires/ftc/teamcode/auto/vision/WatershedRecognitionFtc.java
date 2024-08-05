@@ -8,6 +8,7 @@ import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.WatershedParametersFtc;
 import org.opencv.core.Mat;
+import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
 
@@ -84,7 +85,7 @@ public class WatershedRecognitionFtc {
         // Normalize lighting to a known good value.
         Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
 
-        return WatershedRecognitionStd.prepareAndExecuteWatershed(adjustedGray, pImageROI, sharp, allianceGrayParameters.threshold_low, pOutputFilenamePreamble);
+        return WatershedRecognitionStd.prepareAndExecuteWatershed(adjustedGray, pImageROI, sharp, allianceGrayParameters.threshold_low, Imgproc.THRESH_BINARY, pOutputFilenamePreamble);
     }
 
 }
