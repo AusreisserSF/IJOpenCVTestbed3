@@ -9,6 +9,7 @@ public class WatershedParametersFtc {
         watershedDistanceParameters = pWatershedDistanceParameters;
     }
 
+    //**TODO Naming - remove "distance" -> Threshold
     public static class WatershedDistanceParameters {
         public final VisionParameters.GrayParameters redGrayParameters;
         public final VisionParameters.GrayParameters blueGrayParameters;

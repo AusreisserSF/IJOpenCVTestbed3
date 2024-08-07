@@ -400,6 +400,7 @@ public class ImageUtils {
         return thresholded;
     }
 
+    //**TODO What's wrong with Core.mean()?
     // Get the median of any single-channel Mat.
     public static int getSingleChannelMedian(Mat pSingleChannelMat) {
         if ((pSingleChannelMat.dims() != 2) || (!pSingleChannelMat.isContinuous()))

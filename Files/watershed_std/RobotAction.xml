@@ -6,16 +6,16 @@
         <actions>
             <WATERSHED_STD>
                 <image_parameters>
-                    <image_source>coins.jpg</image_source>
+                    <image_source>pyimagesearch_coins_01.png</image_source>
                     <resolution>
-                        <width>252</width>
-                        <height>312</height>
+                        <width>500</width>
+                        <height>348</height>
                     </resolution>
                     <image_roi>
                         <x>0</x>
                         <y>0</y>
-                        <width>252</width>
-                        <height>312</height>
+                        <width>500</width>
+                        <height>348</height>
                     </image_roi>
                 </image_parameters>
                 <watershed_recognition>

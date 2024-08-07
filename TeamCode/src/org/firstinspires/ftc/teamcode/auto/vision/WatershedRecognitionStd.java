@@ -313,14 +313,21 @@ public class WatershedRecognitionStd {
 
         Mat sharp = ImageUtils.sharpen(pImageROI, pOutputFilenamePreamble);
 
+        // From pyimagesearch
+        Mat shifted = new Mat();
+        Imgproc.pyrMeanShiftFiltering(sharp, shifted, 21, 51);
+
         Mat gray = new Mat();
-        Imgproc.cvtColor(sharp, gray, Imgproc.COLOR_BGR2GRAY);
+        Imgproc.cvtColor(shifted, gray, Imgproc.COLOR_BGR2GRAY);
 
         // Output the grayscale image.
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_GRAY.png", gray);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_GRAY.png");
 
-        return prepareAndExecuteWatershed(gray, pImageROI, sharp, 0, Imgproc.THRESH_BINARY_INV | Imgproc.THRESH_OTSU, pOutputFilenamePreamble);
+        //!! The standard image of coins needs Imgproc.THRESH_BINARY_INV | Imgproc.THRESH_OTSU
+        //!! The pyimagesearch_coins_02.png needs Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU
+        //**TODO pyimagesearch_coins_01.png needs Imgproc.THRESH_BINARY
+        return prepareAndExecuteWatershed(gray, pImageROI, sharp, 100, Imgproc.THRESH_BINARY, pOutputFilenamePreamble);
     }
 
     // Source: standard Java example - specific to the cards image.
