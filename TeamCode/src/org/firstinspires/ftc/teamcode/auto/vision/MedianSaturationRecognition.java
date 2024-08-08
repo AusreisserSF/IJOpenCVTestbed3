@@ -9,17 +9,24 @@ import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.WatershedParametersFtc;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 
+//**TODO Not "median" but "mean".
+//**TODO Variation of distance transform?
+//**TODO Which is the major category - pixel count, distance?
+//**TODO Before you do mean saturation you can do distance, then pixel count or bright spot.
 public class MedianSaturationRecognition {
 
     private static final String TAG = MedianSaturationRecognition.class.getSimpleName();
 
     public enum MedianSaturationRecognitionPath {
-        MEDIAN_SATURATION
+        SATURATION_MEDIAN //**TODO Wrong name
+
     }
 
     private final RobotConstants.Alliance alliance;
@@ -51,7 +58,7 @@ public class MedianSaturationRecognition {
 
         // Adapt the standard example to our environment.
         switch (pMedianSaturationRecognitionPath) {
-            case MEDIAN_SATURATION -> {
+            case SATURATION_MEDIAN -> {
                 return evaluateHSVSaturationChannel(imageROI, outputFilenamePreamble, pMedianSaturationParameters.watershedDistanceParameters);
             }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
@@ -60,7 +67,7 @@ public class MedianSaturationRecognition {
 
     private RobotConstants.RecognitionResults evaluateHSVSaturationChannel(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWatershedDistanceParameters) {
 
-        // Use the grayscale and pixel count criteria parameters for the current alliance.
+        // Use the grayscale parameters for the current alliance.
         VisionParameters.GrayParameters allianceGrayParameters;
         switch (alliance) {
             case RED -> allianceGrayParameters = pWatershedDistanceParameters.redGrayParameters;
@@ -72,24 +79,46 @@ public class MedianSaturationRecognition {
         //**TODO Probably don't need sharpening
         //Mat sharp = ImageUtils.sharpen(pImageROI, pOutputFilenamePreamble);
 
-        //**TODO Convert to HSV and split the channels.
+        // Convert to HSV and split the channels.
         // We're on the HSV path.
         Mat hsvROI = new Mat();
         Imgproc.cvtColor(pImageROI, hsvROI, Imgproc.COLOR_BGR2HSV);
+
+        //**TODO Adjust the median saturation and value of the HSV image
+        // then split.
 
         // Split the image into its constituent HSV channels
         ArrayList<Mat> channels = new ArrayList<>();
         Core.split(hsvROI, channels);
 
-        //**TODO Write out the S channel as grayscale.
-
-        // Get the median of the S channel.
-        int medianSaturation = ImageUtils.getSingleChannelMedian(channels.get(1));
-
-        RobotLogCommon.d(TAG, "HSV saturation channel median " + medianSaturation);
-
         // Normalize lighting to a known good value.
-        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(channels.get(1), allianceGrayParameters.median_target);
+        //Mat adjustedSat = ImageUtils.adjustGrayscaleMedian(channels.get(1), allianceGrayParameters.median_target);
+
+        // Write out the S channel as grayscale.
+        String satFilename = pOutputFilenamePreamble + "_SAT.png";
+        Imgcodecs.imwrite(satFilename, channels.get(1));
+        RobotLogCommon.d(TAG, "Writing " + satFilename);
+
+        // Get the mean of the S channel.
+        Scalar meanSaturation = Core.mean(channels.get(1));
+
+        RobotLogCommon.d(TAG, "HSV saturation channel mean " + meanSaturation);
+
+        // Do the same for the value channel.
+        // Normalize lighting to a known good value.
+        //Mat adjustedVal = ImageUtils.adjustGrayscaleMedian(channels.get(2), allianceGrayParameters.median_target);
+
+        // Write out the V channel as grayscale.
+        /*
+        String valFilename = pOutputFilenamePreamble + "_VAL.png";
+        Imgcodecs.imwrite(valFilename, channels.get(2));
+        RobotLogCommon.d(TAG, "Writing " + valFilename);
+
+        // Get the median of the V channel.
+        int medianValue = ImageUtils.getSingleChannelMedian(channels.get(2));
+
+        RobotLogCommon.d(TAG, "HSV value channel median " + medianValue);
+        */
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }

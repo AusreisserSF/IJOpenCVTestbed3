@@ -198,7 +198,7 @@ public class RecognitionDispatcher extends Application {
                 WatershedParametersFtcXML watershedParametersFtcXML = new WatershedParametersFtcXML(fullTestCaseDir);
                 WatershedParametersFtc watershedParametersFtc = watershedParametersFtcXML.getWatershedParameters();
 
-                // Get the <image_parameters> for the playing cards from the RobotAction XML file.
+                // Get the <image_parameters> from the RobotAction XML file.
                 VisionParameters.ImageParameters watershedImageParameters =
                         robotActionXML.getImageParametersFromXPath(actionElement, "image_parameters");
 
@@ -268,6 +268,42 @@ public class RecognitionDispatcher extends Application {
                 displayResults(fullTestCaseDir + imageFilename,
                         buildResultsOnlyDisplayText(imageFilename, distanceReturn),
                         "Test standard OpenCV Watershed");
+            }
+
+            case "MEDIAN_SATURATION" -> {
+                //**TEMP - use watershed parameters ...
+                WatershedParametersFtcXML watershedParametersFtcXML = new WatershedParametersFtcXML(fullTestCaseDir);
+                WatershedParametersFtc watershedParametersFtc = watershedParametersFtcXML.getWatershedParameters();
+
+                // Get the <image_parameters> from the RobotAction XML file.
+                VisionParameters.ImageParameters watershedImageParameters =
+                        robotActionXML.getImageParametersFromXPath(actionElement, "image_parameters");
+
+                // Make sure that this tester is reading the image from a file.
+                if (!(watershedImageParameters.image_source.endsWith(".png") ||
+                        watershedImageParameters.image_source.endsWith(".jpg")))
+                    throw new AutonomousRobotException(TAG, "Invalid image file name");
+
+                imageFilename = watershedImageParameters.image_source;
+                ImageProvider fileImage = new FileImage(fullTestCaseDir + watershedImageParameters.image_source);
+
+                // Perform image recognition.
+                // Get the recognition path from the XML file.
+                String recognitionPathString = actionXPath.getRequiredText("watershed_recognition/recognition_path");
+                MedianSaturationRecognition.MedianSaturationRecognitionPath medianSaturationRecognitionPath =
+                        MedianSaturationRecognition.MedianSaturationRecognitionPath.valueOf(recognitionPathString.toUpperCase());
+
+                RobotLogCommon.d(TAG, "Recognition path " + medianSaturationRecognitionPath);
+
+                // Perform image recognition.
+                MedianSaturationRecognition medianSaturationRecognition = new MedianSaturationRecognition(alliance, fullTestCaseDir);
+                RobotConstants.RecognitionResults medianSaturationReturn =
+                        medianSaturationRecognition.performMedianSaturation(fileImage, watershedImageParameters,
+                                medianSaturationRecognitionPath, watershedParametersFtc);
+
+                displayResults(fullTestCaseDir + imageFilename,
+                        buildResultsOnlyDisplayText(imageFilename, medianSaturationReturn),
+                        "Test median saturation");
             }
 
             default -> throw new AutonomousRobotException(TAG, "Unrecognized image recognition action");

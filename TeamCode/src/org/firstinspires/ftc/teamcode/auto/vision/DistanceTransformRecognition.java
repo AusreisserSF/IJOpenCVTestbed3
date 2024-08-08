@@ -93,6 +93,9 @@ public class DistanceTransformRecognition {
         Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
         // Normalize lighting to a known good value.
+        //**TODO The use of this method on a split channel is suspect.
+        // You'd have to split a known good image and get the median of each channel.
+        // And take the inversion into account ...
         Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
 
         // Follow medium.com and threshold the grayscale (in our case adjusted).
