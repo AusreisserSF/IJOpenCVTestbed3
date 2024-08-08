@@ -270,7 +270,7 @@ public class RecognitionDispatcher extends Application {
                         "Test standard OpenCV Watershed");
             }
 
-            case "MEDIAN_SATURATION" -> {
+            case "MEAN_SATURATION" -> {
                 //**TEMP - use watershed parameters ...
                 WatershedParametersFtcXML watershedParametersFtcXML = new WatershedParametersFtcXML(fullTestCaseDir);
                 WatershedParametersFtc watershedParametersFtc = watershedParametersFtcXML.getWatershedParameters();
@@ -290,15 +290,15 @@ public class RecognitionDispatcher extends Application {
                 // Perform image recognition.
                 // Get the recognition path from the XML file.
                 String recognitionPathString = actionXPath.getRequiredText("watershed_recognition/recognition_path");
-                MedianSaturationRecognition.MedianSaturationRecognitionPath medianSaturationRecognitionPath =
-                        MedianSaturationRecognition.MedianSaturationRecognitionPath.valueOf(recognitionPathString.toUpperCase());
+                MeanSaturationRecognition.MeanSaturationRecognitionPath medianSaturationRecognitionPath =
+                        MeanSaturationRecognition.MeanSaturationRecognitionPath.valueOf(recognitionPathString.toUpperCase());
 
                 RobotLogCommon.d(TAG, "Recognition path " + medianSaturationRecognitionPath);
 
                 // Perform image recognition.
-                MedianSaturationRecognition medianSaturationRecognition = new MedianSaturationRecognition(alliance, fullTestCaseDir);
+                MeanSaturationRecognition medianSaturationRecognition = new MeanSaturationRecognition(alliance, fullTestCaseDir);
                 RobotConstants.RecognitionResults medianSaturationReturn =
-                        medianSaturationRecognition.performMedianSaturation(fileImage, watershedImageParameters,
+                        medianSaturationRecognition.performMeanSaturation(fileImage, watershedImageParameters,
                                 medianSaturationRecognitionPath, watershedParametersFtc);
 
                 displayResults(fullTestCaseDir + imageFilename,

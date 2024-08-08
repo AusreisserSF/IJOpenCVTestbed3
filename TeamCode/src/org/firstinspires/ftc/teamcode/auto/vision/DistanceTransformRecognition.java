@@ -75,6 +75,7 @@ public class DistanceTransformRecognition {
         }
     }
 
+    //**TODO Don't reference medium.com - the real source is https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html
     private Mat getDistanceTransformImage(Mat pImageROI, String pOutputFilenamePreamble,
                                           VisionParameters.GrayParameters pRedGrayParameters,
                                           VisionParameters.GrayParameters pBlueGrayParameters) {

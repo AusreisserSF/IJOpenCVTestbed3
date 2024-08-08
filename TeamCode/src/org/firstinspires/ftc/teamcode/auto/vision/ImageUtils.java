@@ -169,6 +169,7 @@ public class ImageUtils {
     }
 
     // Adjust image saturation and value levels in the image to match the targets.
+    //**TODO How do you actually get the median targets? See IJThresholdTester.
     public static Mat adjustSaturationAndValueMedians(Mat pHSVImage, int pSatMedianTarget, int pValMedianTarget) {
         // Split the image into its constituent HSV channels
         ArrayList<Mat> channels = new ArrayList<>();
@@ -400,11 +401,14 @@ public class ImageUtils {
         return thresholded;
     }
 
-    //**TODO This is not correct for the median. See https://www.indeed.com/career-advice/career-development/formula-of-median
+    //**TODO Propagate changes to all IJ and AS projects ...
     // Get the median of any single-channel Mat.
     public static int getSingleChannelMedian(Mat pSingleChannelMat) {
         if ((pSingleChannelMat.dims() != 2) || (!pSingleChannelMat.isContinuous()))
             throw new AutonomousRobotException(TAG, "Expected a single-channel Mat");
+
+        if (pSingleChannelMat.empty())
+            throw new AutonomousRobotException(TAG, "Cannot get the median of an empty Mat");
 
         byte[] byteBuff = new byte[(int) pSingleChannelMat.total()];
         int[] intBuff = new int[(int) pSingleChannelMat.total()];
@@ -419,8 +423,12 @@ public class ImageUtils {
             // Requires Android API level 26 = Byte.toUnsignedInt(byteBuff[i]);
             intBuff[i] = byteBuff[i] & 0xFF;
 
+        if (buffLength == 1) // who would do this?
+            return intBuff[0];
+
         Arrays.sort(intBuff);
-        return (intBuff[buffLength / 2] + (intBuff[(buffLength / 2) - 1])) / 2;
+        int median = buffLength % 2 != 0 ? intBuff[buffLength / 2] : (intBuff[buffLength / 2] + (intBuff[(buffLength / 2) - 1])) / 2;
+        return median;
     }
 
     // Sort contours by area in descending order.
