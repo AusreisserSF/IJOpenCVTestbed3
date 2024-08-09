@@ -162,6 +162,7 @@ public class DistanceTransformRecognition {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_BRIGHT.png", brightSpotOut);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BRIGHT.png");
 
+        //**TODO OR use a bright spot lower limit.
         // If the bright spot is under the threshold then assume no Team Prop is present.
         //## We need a lower threshold for the distance image since it has undergone two
         // morphological openings. Arbitrarily use 1/2 of the low threshold value for the

@@ -5,6 +5,7 @@ import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.TimeStamp;
 import org.firstinspires.ftc.teamcode.auto.RobotConstants;
+import org.firstinspires.ftc.teamcode.auto.xml.RecognitionWindowMapping;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.WatershedParametersFtc;
 import org.opencv.core.*;
@@ -40,7 +41,8 @@ public class MeanSaturationRecognition {
                                                                  VisionParameters.ImageParameters pImageParameters,
                                                                  MeanSaturationRecognitionPath pMedianSaturationRecognitionPath,
                                                                  //**TODO TEMP - use watershed parameters.
-                                                                 WatershedParametersFtc pMedianSaturationParameters) throws InterruptedException {
+                                                                 WatershedParametersFtc pMedianSaturationParameters,
+                                                                   RecognitionWindowMapping pRecognitionWindowMapping) throws InterruptedException {
         RobotLogCommon.d(TAG, "In MeanSaturationRecognition.performMeanSaturation");
 
         // LocalDateTime requires Android minSdkVersion 26  public Pair<Mat, LocalDateTime> getImage() throws InterruptedException;
@@ -57,13 +59,16 @@ public class MeanSaturationRecognition {
         // Adapt the standard example to our environment.
         switch (pMedianSaturationRecognitionPath) {
             case BRIGHT_SPOT -> {
-                return brightSpotPath(imageROI, outputFilenamePreamble, pMedianSaturationParameters.watershedDistanceParameters);
+                return brightSpotPath(imageROI, outputFilenamePreamble, pMedianSaturationParameters.watershedDistanceParameters,
+                        pRecognitionWindowMapping);
             }
             default -> throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
         }
     }
 
-    private RobotConstants.RecognitionResults brightSpotPath(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWatershedDistanceParameters) {
+    //**TODO bright spot - need minimum value.
+    private RobotConstants.RecognitionResults brightSpotPath(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWatershedDistanceParameters,
+                                                             RecognitionWindowMapping pRecognitionWindowMapping) {
 
         VisionParameters.GrayParameters allianceGrayParameters;
         switch (alliance) {
@@ -80,26 +85,32 @@ public class MeanSaturationRecognition {
         //**TODO Adjust the median saturation and value of the HSV image
         // then split.
 
+        //**TODO Propagate ...
         // Split the image into its constituent HSV channels
-        ArrayList<Mat> channels = new ArrayList<>();
-        Core.split(hsvROI, channels);
+        //ArrayList<Mat> channels = new ArrayList<>();
+        //Core.split(hsvROI, channels);
+        Mat saturationChannel = new Mat();
+        Core.extractChannel(hsvROI, saturationChannel, 1);
 
         // Write out the S channel as grayscale.
         String satFilename = pOutputFilenamePreamble + "_SAT.png";
-        Imgcodecs.imwrite(satFilename, channels.get(1));
+        Imgcodecs.imwrite(satFilename, saturationChannel);
         RobotLogCommon.d(TAG, "Writing " + satFilename);
 
+        //**TODO Get the mean saturation of each window and see what kind
+        // of differentiation we get andwhat kind of absolute numbers.
+
         // Get the mean of the S channel.
-        Scalar meanSaturation = Core.mean(channels.get(1));
+        Scalar meanSaturation = Core.mean(saturationChannel);
         RobotLogCommon.d(TAG, "HSV saturation channel mean " + meanSaturation.val[0]);
 
         //**TODO Overlaps DistanceTransforRecognition.getDistanceTransformImage
         // https://docs.opencv.org/4.x/d3/db4/tutorial_py_watershed.html
         // Follow the standard Python example and threshold the grayscale.
         // Threshold the image: set pixels over the threshold value to white.
-        //**TODO Is thresholding really necessary here? [YES, it helps]
+        //**TODO Is thresholding really necessary here? [YES, necessary for the distance transform]
         Mat thresholded = new Mat(); // output binary image
-        Imgproc.threshold(channels.get(1), thresholded,
+        Imgproc.threshold(saturationChannel, thresholded,
                 Math.abs(allianceGrayParameters.threshold_low),    // threshold value
                 255,   // white
                 Imgproc.THRESH_BINARY); // thresholding type
@@ -109,14 +120,14 @@ public class MeanSaturationRecognition {
         Imgcodecs.imwrite(thrFilename, thresholded);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
-        //**TODO is opening really necessary here? [YES, it helps]
+        //**TODO is opening really necessary here? [YES, can help with distanceTransform]
         // Follow the standard Python example and perform two morphological openings on the thresholded image.
-        Mat opening = new Mat();
+        Mat opened = new Mat();
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.morphologyEx(thresholded, opening, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
+        Imgproc.morphologyEx(thresholded, opened, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
 
         String openFilename = pOutputFilenamePreamble + "_OPEN.png";
-        Imgcodecs.imwrite(openFilename, opening);
+        Imgcodecs.imwrite(openFilename, opened);
         RobotLogCommon.d(TAG, "Writing " + openFilename);
 
         // The distance transform identifies regions that are likely to be in
@@ -125,7 +136,7 @@ public class MeanSaturationRecognition {
         // Perform the distance transform algorithm. Imgproc.DIST_L2
         // is a flag for Euclidean distance. Output is 32FC1.
         Mat dist = new Mat();
-        Imgproc.distanceTransform(opening, dist, Imgproc.DIST_L2, 3);
+        Imgproc.distanceTransform(opened, dist, Imgproc.DIST_L2, 3);
 
         Core.normalize(dist, dist, 0.0, 255.0, Core.NORM_MINMAX);
         Mat dist_8u = new Mat();
@@ -139,13 +150,22 @@ public class MeanSaturationRecognition {
         Core.MinMaxLocResult brightResult = Core.minMaxLoc(dist_8u);
         RobotLogCommon.d(TAG, "Bright spot location " + brightResult.maxLoc + ", value " + brightResult.maxVal);
 
+        //**TODO Needs its own minimum.
+        if (brightResult.maxVal < allianceGrayParameters.threshold_low / 2.0) {
+            RobotLogCommon.d(TAG, "Bright spot value was under the threshold");
+            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+        }
+
         Mat brightSpotOut = pImageROI.clone();
         Imgproc.circle(brightSpotOut, brightResult.maxLoc, 10, new Scalar(0, 255, 0));
 
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_BRIGHT.png", brightSpotOut);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BRIGHT.png");
 
-        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+        //**TODO lookThroughWindows depends on the center of the recognized object.
+        // Try comparing the mean saturation of window submats to a minimum value.
+        return RecognitionWindowUtils.lookThroughWindows(brightResult.maxLoc, brightSpotOut, pOutputFilenamePreamble,
+                pRecognitionWindowMapping.recognitionWindows);
     }
 
 }

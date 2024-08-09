@@ -257,7 +257,7 @@ public class RecognitionDispatcher extends Application {
                         recognitionWindowMappingXML.collectRecognitionWindowMapping(RobotConstants.OpMode.TEST, actionName);
 
                 if (opModeRecognitionWindowMapping == null)
-                    throw new AutonomousRobotException(TAG, "Element 'FIND_TEAM_PROP' not found under OpMode TEST");
+                    throw new AutonomousRobotException(TAG, "Action element " + actionName + " not found under OpMode TEST");
 
                 // Perform image recognition.
                 DistanceTransformRecognition distanceTransformRecognition = new DistanceTransformRecognition(alliance, fullTestCaseDir);
@@ -289,21 +289,27 @@ public class RecognitionDispatcher extends Application {
 
                 // Perform image recognition.
                 // Get the recognition path from the XML file.
-                String recognitionPathString = actionXPath.getRequiredText("watershed_recognition/recognition_path");
+                String recognitionPathString = actionXPath.getRequiredText("mean_saturation_recognition/recognition_path");
                 MeanSaturationRecognition.MeanSaturationRecognitionPath medianSaturationRecognitionPath =
                         MeanSaturationRecognition.MeanSaturationRecognitionPath.valueOf(recognitionPathString.toUpperCase());
 
                 RobotLogCommon.d(TAG, "Recognition path " + medianSaturationRecognitionPath);
+                RecognitionWindowMappingXML recognitionWindowMappingXML = new RecognitionWindowMappingXML(robotActionFilename);
+                RecognitionWindowMapping opModeRecognitionWindowMapping =
+                        recognitionWindowMappingXML.collectRecognitionWindowMapping(RobotConstants.OpMode.TEST, actionName);
+
+                if (opModeRecognitionWindowMapping == null)
+                    throw new AutonomousRobotException(TAG, "Action element " + actionName + " not found under OpMode TEST");
 
                 // Perform image recognition.
                 MeanSaturationRecognition medianSaturationRecognition = new MeanSaturationRecognition(alliance, fullTestCaseDir);
                 RobotConstants.RecognitionResults medianSaturationReturn =
                         medianSaturationRecognition.performMeanSaturation(fileImage, watershedImageParameters,
-                                medianSaturationRecognitionPath, watershedParametersFtc);
+                                medianSaturationRecognitionPath, watershedParametersFtc, opModeRecognitionWindowMapping);
 
                 displayResults(fullTestCaseDir + imageFilename,
                         buildResultsOnlyDisplayText(imageFilename, medianSaturationReturn),
-                        "Test median saturation");
+                        "Test mean saturation");
             }
 
             default -> throw new AutonomousRobotException(TAG, "Unrecognized image recognition action");
