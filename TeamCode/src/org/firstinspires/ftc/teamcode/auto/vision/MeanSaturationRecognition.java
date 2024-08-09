@@ -66,10 +66,12 @@ public class MeanSaturationRecognition {
         }
     }
 
+    //**TODO The real method is SATURATION_LEVEL with a minimum that indicates the presence of a team prop.
     //**TODO bright spot - need minimum value.
     private RobotConstants.RecognitionResults brightSpotPath(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWatershedDistanceParameters,
                                                              RecognitionWindowMapping pRecognitionWindowMapping) {
 
+        //**TODO Don't need to threshold.
         VisionParameters.GrayParameters allianceGrayParameters;
         switch (alliance) {
             case RED -> allianceGrayParameters = pWatershedDistanceParameters.redGrayParameters;
@@ -97,13 +99,23 @@ public class MeanSaturationRecognition {
         Imgcodecs.imwrite(satFilename, saturationChannel);
         RobotLogCommon.d(TAG, "Writing " + satFilename);
 
-        //**TODO Get the mean saturation of each window and see what kind
-        // of differentiation we get andwhat kind of absolute numbers.
+        //**TODO Get the mean saturation of each spike window and see what kind
+        // of differentiation we get and what kind of absolute numbers.
+
+        // Define a submat for each spike window.
+        Pair<Rect, RobotConstants.ObjectLocation> leftWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.LEFT);
+        Mat leftWindowSubmat = pImageROI.submat(leftWindowData.first);
+        //**TODO Get mean of leftWindowSubmat and print.
+
+        Pair<Rect, RobotConstants.ObjectLocation> rightWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.RIGHT);
+        Pair<Rect, RobotConstants.ObjectLocation> nposWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.WINDOW_NPOS);
+
 
         // Get the mean of the S channel.
         Scalar meanSaturation = Core.mean(saturationChannel);
         RobotLogCommon.d(TAG, "HSV saturation channel mean " + meanSaturation.val[0]);
 
+        /*
         //**TODO Overlaps DistanceTransforRecognition.getDistanceTransformImage
         // https://docs.opencv.org/4.x/d3/db4/tutorial_py_watershed.html
         // Follow the standard Python example and threshold the grayscale.
@@ -166,6 +178,9 @@ public class MeanSaturationRecognition {
         // Try comparing the mean saturation of window submats to a minimum value.
         return RecognitionWindowUtils.lookThroughWindows(brightResult.maxLoc, brightSpotOut, pOutputFilenamePreamble,
                 pRecognitionWindowMapping.recognitionWindows);
+         */
+
+        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
 }
