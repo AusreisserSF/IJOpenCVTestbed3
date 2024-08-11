@@ -55,14 +55,20 @@ public class DistanceTransformRecognition {
         // Adapt the standard example to our environment.
         switch (pDistanceRecognitionPath) {
             // Use a switch by convention in case we have more paths in the future.
+            //**TODO Remove bright_spot
+            /*
             case COLOR_CHANNEL_BRIGHT_SPOT -> {
+
                 Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble,
                         pDistanceParameters.colorChannelBrightSpotParameters.redGrayParameters,
                         pDistanceParameters.colorChannelBrightSpotParameters.blueGrayParameters);
                 return colorChannelBrightSpot(imageROI, distanceTransformImage, outputFilenamePreamble,
                         pDistanceParameters.colorChannelBrightSpotParameters,
                         pRecognitionWindowMapping);
+
             }
+            */
+
             case COLOR_CHANNEL_PIXEL_COUNT -> {
                 Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble,
                         pDistanceParameters.colorChannelPixelCountParameters.redGrayParameters,
@@ -141,6 +147,11 @@ public class DistanceTransformRecognition {
         return dist_8u;
     }
 
+    //**TODO BrightSpot recognition just doesn't work under different different
+    // lighting and and image color composition. See the runs for the two images
+    // front_webcam_03091322_29561_IMG.png (Blue A4 R - morning; bright_spot found non-existent team prop on the left spike)
+    // front_webcam_03090758_45758_IMG.png (Blue A2 C - afternoon; pixel_count found non-existent team prop on the left spike - over the minimum)
+    /*
     private RobotConstants.RecognitionResults colorChannelBrightSpot(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
                                                                      DistanceParameters.ColorChannelBrightSpotParameters pBrightSpotParameters,
@@ -162,7 +173,6 @@ public class DistanceTransformRecognition {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_BRIGHT.png", brightSpotOut);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BRIGHT.png");
 
-        //**TODO OR use a bright spot lower limit.
         // If the bright spot is under the threshold then assume no Team Prop is present.
         //## We need a lower threshold for the distance image since it has undergone two
         // morphological openings. Arbitrarily use 1/2 of the low threshold value for the
@@ -175,7 +185,14 @@ public class DistanceTransformRecognition {
         return RecognitionWindowUtils.lookThroughWindows(brightResult.maxLoc, brightSpotOut, pOutputFilenamePreamble,
                 pRecognitionWindowMapping.recognitionWindows);
     }
+    */
 
+    //**TODO Pure pixel count is not good enough - count for the team prop is too close
+    // to that of the left spike under different lighting conditions. See the logs for
+    // TestLog_2024-08-10_1114-10.430.txt.0 for front_webcam_03090758_45758_IMG.png
+    // TestLog_2024-08-10_1109-27.144.txt.0 for front_webcam_03091322_29561_IMG.png
+    // Need findContours and limits for width and height
+    // of bounding box or RotatedRect angle.
     private RobotConstants.RecognitionResults colorChannelPixelCount(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
                                                                      DistanceParameters.ColorChannelPixelCountParameters pPixelCountParameters,

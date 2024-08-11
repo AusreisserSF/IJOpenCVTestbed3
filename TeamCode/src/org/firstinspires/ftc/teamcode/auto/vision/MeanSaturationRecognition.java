@@ -15,7 +15,6 @@ import org.opencv.imgproc.Imgproc;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 
-//**TODO Overlaps distance transform.
 //**TODO Try red
 public class MeanSaturationRecognition {
 
@@ -34,8 +33,6 @@ public class MeanSaturationRecognition {
         testCaseDirectory = pTestCaseDirectory;
     }
 
-    //**TODO The blue ROI is too high and skewed to the left.
-    //**TODO Need recognition windows ...
     // Returns the result of image analysis.
     public RobotConstants.RecognitionResults performMeanSaturation(ImageProvider pImageProvider,
                                                                  VisionParameters.ImageParameters pImageParameters,
@@ -102,18 +99,23 @@ public class MeanSaturationRecognition {
         //**TODO Get the mean saturation of each spike window and see what kind
         // of differentiation we get and what kind of absolute numbers.
 
-        // Define a submat for each spike window.
+        // Define a submat for each spike window, get the mean of each submat
+        // and print.
         Pair<Rect, RobotConstants.ObjectLocation> leftWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.LEFT);
         Mat leftWindowSubmat = pImageROI.submat(leftWindowData.first);
-        //**TODO Get mean of leftWindowSubmat and print.
+        Scalar leftWindowMean = Core.mean(leftWindowSubmat);
+        RobotLogCommon.d(TAG, "Left spike window saturation channel mean " + leftWindowMean.val[0]);
 
         Pair<Rect, RobotConstants.ObjectLocation> rightWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.RIGHT);
-        Pair<Rect, RobotConstants.ObjectLocation> nposWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.WINDOW_NPOS);
+        Mat rightWindowSubmat = pImageROI.submat(rightWindowData.first);
+        Scalar rightWindowMean = Core.mean(rightWindowSubmat);
+        RobotLogCommon.d(TAG, "Right spike window saturation channel mean " + rightWindowMean.val[0]);
 
+        //Pair<Rect, RobotConstants.ObjectLocation> nposWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.WINDOW_NPOS);
 
-        // Get the mean of the S channel.
-        Scalar meanSaturation = Core.mean(saturationChannel);
-        RobotLogCommon.d(TAG, "HSV saturation channel mean " + meanSaturation.val[0]);
+        Mat recognitionWindowsOut = pImageROI.clone();
+        RecognitionWindowUtils.drawRecognitionWindows(recognitionWindowsOut, pOutputFilenamePreamble,
+                pRecognitionWindowMapping.recognitionWindows);
 
         /*
         //**TODO Overlaps DistanceTransforRecognition.getDistanceTransformImage
