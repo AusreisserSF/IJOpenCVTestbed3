@@ -32,7 +32,6 @@ public class DistanceTransformRecognition {
     }
 
     // Use the OpenCV Distance Transform algorithm to detect an object.
-
     // Returns the result of image analysis.
     public RobotConstants.RecognitionResults performDistanceTransform(ImageProvider pImageProvider,
                                                                       VisionParameters.ImageParameters pImageParameters,
@@ -55,7 +54,6 @@ public class DistanceTransformRecognition {
         // Adapt the standard example to our environment.
         switch (pDistanceRecognitionPath) {
             case COLOR_CHANNEL_BRIGHT_SPOT -> {
-
                 Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble,
                         pDistanceParameters.colorChannelBrightSpotParameters.redGrayParameters,
                         pDistanceParameters.colorChannelBrightSpotParameters.blueGrayParameters);
@@ -76,7 +74,8 @@ public class DistanceTransformRecognition {
         }
     }
 
-    //**TODO Don't reference medium.com - the real source is https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html
+    // Based on the OpenCV Python example for watershed:
+    // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html
     private Mat getDistanceTransformImage(Mat pImageROI, String pOutputFilenamePreamble,
                                           VisionParameters.GrayParameters pRedGrayParameters,
                                           VisionParameters.GrayParameters pBlueGrayParameters) {
@@ -95,8 +94,7 @@ public class DistanceTransformRecognition {
         // See the comments above the method.
         Mat invertedChannel = extractAndInvertChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
-        // Follow medium.com and threshold the grayscale (in our case adjusted).
-        // Threshold the image: set pixels over the threshold value to white.
+        // Follow the Python example and threshold the grayscale.
         Mat thresholded = new Mat(); // output binary image
         Imgproc.threshold(invertedChannel, thresholded,
                 Math.abs(allianceGrayParameters.threshold_low),    // threshold value
@@ -108,21 +106,6 @@ public class DistanceTransformRecognition {
         Imgcodecs.imwrite(thrFilename, thresholded);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
-        //**TODO The image may be all black at this point (countNonZero) - continue?
-
-        //**TODO This duplicates the opening in extractAndInvertChannel
-        // Follow medium.com and perform two morphological openings on the thresholded image.
-        //Mat opening = new Mat();
-        //Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        //Imgproc.morphologyEx(thresholded, opening, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
-
-        //String openFilename = pOutputFilenamePreamble + "_OPEN.png";
-        //Imgcodecs.imwrite(openFilename, opening);
-        //RobotLogCommon.d(TAG, "Writing " + openFilename);
-
-        // The distance transform identifies regions that are likely to be in
-        // the foreground.
-        //! [dist]
         // Perform the distance transform algorithm. Imgproc.DIST_L2
         // is a flag for Euclidean distance. Output is 32FC1.
         Mat dist = new Mat();
@@ -140,12 +123,9 @@ public class DistanceTransformRecognition {
         return dist_8u;
     }
 
-    //**TODO BrightSpot recognition just doesn't work under different different
-    // lighting and and image color composition. See the runs for the two images
-    // front_webcam_03091322_29561_IMG.png (Blue A4 R - morning; bright_spot found non-existent team prop on the left spike)
-    // front_webcam_03090758_45758_IMG.png (Blue A2 C - afternoon; pixel_count found non-existent team prop on the left spike - over the minimum)
-    //**TODO Not so fast - retry brightSpot with front_webcam_03091322_29561_IMG.png Blue A4 R
-    //**TODO !!See TestLog_2024-08-10_2230-51.542.txt.0; BrightSpot worked!
+    // BrightSpot recognition is more risky than pixel counting because if just
+    // one white pixel sneaks through our filtering the result will be a false
+    // positive. But keep this as an interesting technique.
     private RobotConstants.RecognitionResults colorChannelBrightSpot(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
                                                                      DistanceParameters.ColorChannelBrightSpotParameters pBrightSpotParameters,
@@ -207,10 +187,11 @@ public class DistanceTransformRecognition {
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
 
-        //**TODO Arbitrarily 1/2 - or maintain a separate value?
-        //## We need a lower threshold for the distance image since it has undergone the
-        // distance transformation. Arbitrarily use 1/2 of the low threshold value for the
+        //## The distance transform tends to produce a diffuse result because the
+        // values closest to white only occur near the center of an object such as
+        // the team prop. So arbitrarily use 1/2 of the low threshold value for the
         // split channel grayscale.
+        //?? Is 1/2 good enough or do you need a separate value in the XML file?
         Mat thresholded = new Mat();
         Imgproc.threshold(pDistanceImage, thresholded, allianceThresholdLow / 2.0, 255, Imgproc.THRESH_BINARY);
 
