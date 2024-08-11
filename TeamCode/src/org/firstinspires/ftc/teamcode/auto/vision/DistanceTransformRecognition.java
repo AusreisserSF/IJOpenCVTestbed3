@@ -54,9 +54,6 @@ public class DistanceTransformRecognition {
 
         // Adapt the standard example to our environment.
         switch (pDistanceRecognitionPath) {
-            // Use a switch by convention in case we have more paths in the future.
-            //**TODO Remove bright_spot
-            /*
             case COLOR_CHANNEL_BRIGHT_SPOT -> {
 
                 Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble,
@@ -67,8 +64,6 @@ public class DistanceTransformRecognition {
                         pRecognitionWindowMapping);
 
             }
-            */
-
             case COLOR_CHANNEL_PIXEL_COUNT -> {
                 Mat distanceTransformImage = getDistanceTransformImage(imageROI, outputFilenamePreamble,
                         pDistanceParameters.colorChannelPixelCountParameters.redGrayParameters,
@@ -96,19 +91,14 @@ public class DistanceTransformRecognition {
         //##PY Apply a sharpening kernel to the color image.
         Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
 
-        // Split the BGR image into its components; see the comments above the method.
-        Mat split = splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
-
-        // Normalize lighting to a known good value.
-        //**TODO The use of this method on a split channel is suspect.
-        // You'd have to split a known good image and get the median of each channel.
-        // And take the inversion into account ...
-        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);
+        // Extract the alliance channel from the BGR image and invert.
+        // See the comments above the method.
+        Mat invertedChannel = extractAndInvertChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
         // Follow medium.com and threshold the grayscale (in our case adjusted).
         // Threshold the image: set pixels over the threshold value to white.
         Mat thresholded = new Mat(); // output binary image
-        Imgproc.threshold(adjustedGray, thresholded,
+        Imgproc.threshold(invertedChannel, thresholded,
                 Math.abs(allianceGrayParameters.threshold_low),    // threshold value
                 255,   // white
                 Imgproc.THRESH_BINARY); // thresholding type
@@ -118,14 +108,17 @@ public class DistanceTransformRecognition {
         Imgcodecs.imwrite(thrFilename, thresholded);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
-        // Follow medium.com and perform two morphological openings on the thresholded image.
-        Mat opening = new Mat();
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.morphologyEx(thresholded, opening, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
+        //**TODO The image may be all black at this point (countNonZero) - continue?
 
-        String openFilename = pOutputFilenamePreamble + "_OPEN.png";
-        Imgcodecs.imwrite(openFilename, opening);
-        RobotLogCommon.d(TAG, "Writing " + openFilename);
+        //**TODO This duplicates the opening in extractAndInvertChannel
+        // Follow medium.com and perform two morphological openings on the thresholded image.
+        //Mat opening = new Mat();
+        //Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        //Imgproc.morphologyEx(thresholded, opening, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
+
+        //String openFilename = pOutputFilenamePreamble + "_OPEN.png";
+        //Imgcodecs.imwrite(openFilename, opening);
+        //RobotLogCommon.d(TAG, "Writing " + openFilename);
 
         // The distance transform identifies regions that are likely to be in
         // the foreground.
@@ -133,7 +126,7 @@ public class DistanceTransformRecognition {
         // Perform the distance transform algorithm. Imgproc.DIST_L2
         // is a flag for Euclidean distance. Output is 32FC1.
         Mat dist = new Mat();
-        Imgproc.distanceTransform(opening, dist, Imgproc.DIST_L2, 3);
+        Imgproc.distanceTransform(thresholded, dist, Imgproc.DIST_L2, 3);
 
         Core.normalize(dist, dist, 0.0, 255.0, Core.NORM_MINMAX);
         Mat dist_8u = new Mat();
@@ -151,7 +144,8 @@ public class DistanceTransformRecognition {
     // lighting and and image color composition. See the runs for the two images
     // front_webcam_03091322_29561_IMG.png (Blue A4 R - morning; bright_spot found non-existent team prop on the left spike)
     // front_webcam_03090758_45758_IMG.png (Blue A2 C - afternoon; pixel_count found non-existent team prop on the left spike - over the minimum)
-    /*
+    //**TODO Not so fast - retry brightSpot with front_webcam_03091322_29561_IMG.png Blue A4 R
+    //**TODO !!See TestLog_2024-08-10_2230-51.542.txt.0; BrightSpot worked!
     private RobotConstants.RecognitionResults colorChannelBrightSpot(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
                                                                      DistanceParameters.ColorChannelBrightSpotParameters pBrightSpotParameters,
@@ -185,7 +179,6 @@ public class DistanceTransformRecognition {
         return RecognitionWindowUtils.lookThroughWindows(brightResult.maxLoc, brightSpotOut, pOutputFilenamePreamble,
                 pRecognitionWindowMapping.recognitionWindows);
     }
-    */
 
     //**TODO Pure pixel count is not good enough - count for the team prop is too close
     // to that of the left spike under different lighting conditions. See the logs for
@@ -214,8 +207,9 @@ public class DistanceTransformRecognition {
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
 
-        //## We need a lower threshold for the distance image since it has undergone two
-        // morphological openings. Arbitrarily use 1/2 of the low threshold value for the
+        //**TODO Arbitrarily 1/2 - or maintain a separate value?
+        //## We need a lower threshold for the distance image since it has undergone the
+        // distance transformation. Arbitrarily use 1/2 of the low threshold value for the
         // split channel grayscale.
         Mat thresholded = new Mat();
         Imgproc.threshold(pDistanceImage, thresholded, allianceThresholdLow / 2.0, 255, Imgproc.THRESH_BINARY);
@@ -276,20 +270,18 @@ public class DistanceTransformRecognition {
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
-    //## Imported from IJCenterStageVision.
+    //**TODO Propagate changes.
     // Split the original image ROI into its BGR channels. The alliance
     // determines which channel to pre-process and return. For better
     // contrast the RED alliance uses the inversion of the blue channel
     // and the BLUE alliance uses the inversion of the red channel.
-    private Mat splitAndInvertChannels(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
-        ArrayList<Mat> channels = new ArrayList<>(3);
-        Core.split(pImageROI, channels); // red or blue channel. B = 0, G = 1, R = 2
-        Mat selectedChannel;
+    private Mat extractAndInvertChannel(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
+        Mat selectedChannel = new Mat();
         switch (pAlliance) {
             case RED -> {
                 // The inversion of the blue channel gives better contrast
                 // than the red channel.
-                selectedChannel = channels.get(0);
+                Core.extractChannel(pImageROI, selectedChannel, 0);
                 Core.bitwise_not(selectedChannel, selectedChannel);
                 Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE_INVERTED.png", selectedChannel);
                 RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE_INVERTED.png");
@@ -297,7 +289,7 @@ public class DistanceTransformRecognition {
             case BLUE -> {
                 // The inversion of the red channel gives better contrast
                 // than the blue channel.
-                selectedChannel = channels.get(2);
+                Core.extractChannel(pImageROI, selectedChannel, 2);
                 Core.bitwise_not(selectedChannel, selectedChannel);
                 Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_INVERTED.png", selectedChannel);
                 RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_INVERTED.png");
@@ -305,14 +297,20 @@ public class DistanceTransformRecognition {
             default -> throw new AutonomousRobotException(TAG, "Alliance must be RED or BLUE");
         }
 
+        //**TODO This doesn't work unless you determine the median target
+        // of the individual channel; modify IJThresholdTester.
         // Always adjust the grayscale.
-        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel,
-                pGrayParameters.median_target);
+        //**TODO TEMP commented out until you can get the right values ... Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel,
+        //        pGrayParameters.median_target);
 
-        Imgproc.erode(adjustedGray, adjustedGray, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
-        Imgproc.dilate(adjustedGray, adjustedGray, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
+        Mat opened = new Mat();
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.morphologyEx(selectedChannel, opened, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
 
-        return adjustedGray;
+        String openFilename = pOutputFilenamePreamble + "_OPEN.png";
+        Imgcodecs.imwrite(openFilename, opened);
+        RobotLogCommon.d(TAG, "Writing " + openFilename);
+        return opened;
     }
 
     //## Imported from IJCenterStageVision.
