@@ -123,9 +123,9 @@ public class DistanceTransformRecognition {
         return dist_8u;
     }
 
-    // BrightSpot recognition is more risky than pixel counting because if just
-    // one white pixel sneaks through our filtering the result will be a false
-    // positive. But keep this as an interesting technique.
+    //!! BrightSpot recognition is more risky than pixel counting because if
+    // just one white pixel sneaks through our filtering the result will be a
+    // false positive. But keep this as an interesting technique.
     private RobotConstants.RecognitionResults colorChannelBrightSpot(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
                                                                      DistanceParameters.ColorChannelBrightSpotParameters pBrightSpotParameters,
@@ -160,12 +160,9 @@ public class DistanceTransformRecognition {
                 pRecognitionWindowMapping.recognitionWindows);
     }
 
-    //**TODO Pure pixel count is not good enough - count for the team prop is too close
-    // to that of the left spike under different lighting conditions. See the logs for
-    // TestLog_2024-08-10_1114-10.430.txt.0 for front_webcam_03090758_45758_IMG.png
-    // TestLog_2024-08-10_1109-27.144.txt.0 for front_webcam_03091322_29561_IMG.png
-    // Need findContours and limits for width and height
-    // of bounding box or RotatedRect angle.
+    //**TODO If the pure pixel count is not good enough you may have to call
+    // findContours and add filters for the width and height of the
+    // bounding box or the angle of the RotatedRect.
     private RobotConstants.RecognitionResults colorChannelPixelCount(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
                                                                      DistanceParameters.ColorChannelPixelCountParameters pPixelCountParameters,
@@ -279,9 +276,11 @@ public class DistanceTransformRecognition {
         }
 
         //**TODO This doesn't work unless you determine the median target
-        // of the individual channel; modify IJThresholdTester.
+        // of the individual channel; modify IJThresholdTester to log the
+        // median values of each channel after a split.
+
         // Always adjust the grayscale.
-        //**TODO TEMP commented out until you can get the right values ... Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel,
+        // TEMP commented out until you can get the right values ... Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel,
         //        pGrayParameters.median_target);
 
         Mat opened = new Mat();

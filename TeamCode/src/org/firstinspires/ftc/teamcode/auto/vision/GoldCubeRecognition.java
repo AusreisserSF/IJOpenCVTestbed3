@@ -69,6 +69,7 @@ public class GoldCubeRecognition {
     private RobotConstants.RecognitionResults redChannelPathWebcam(Mat pImageROI, String pOutputFilenamePreamble,
                                                                    GoldCubeParameters pGoldCubeParameters) {
 
+        //**TODO Use Core.extractChannel(2);
         ArrayList<Mat> channels = new ArrayList<>(3);
         Core.split(pImageROI, channels); // red or blue channel. B = 0, G = 1, R = 2
 

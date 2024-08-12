@@ -21,7 +21,7 @@
         <threshold_low>175</threshold_low>
       </gray_parameters>
       <criteria>
-        <min_white_pixel_count>1000</min_white_pixel_count>
+        <min_white_pixel_count>2000</min_white_pixel_count>
       </criteria>
     </RED>
     <BLUE>
