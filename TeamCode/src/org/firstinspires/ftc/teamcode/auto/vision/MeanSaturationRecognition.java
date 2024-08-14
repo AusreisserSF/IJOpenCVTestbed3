@@ -68,7 +68,7 @@ public class MeanSaturationRecognition {
     private RobotConstants.RecognitionResults brightSpotPath(Mat pImageROI, String pOutputFilenamePreamble, WatershedParametersFtc.WatershedDistanceParameters pWatershedDistanceParameters,
                                                              RecognitionWindowMapping pRecognitionWindowMapping) {
 
-        //**TODO Don't need to threshold.
+        //**TODO Don't need to threshold. WHY NOT?
         VisionParameters.GrayParameters allianceGrayParameters;
         switch (alliance) {
             case RED -> allianceGrayParameters = pWatershedDistanceParameters.redGrayParameters;

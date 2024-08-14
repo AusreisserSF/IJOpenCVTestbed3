@@ -37,6 +37,8 @@ public class GoldCubeRecognition {
         alliance = pAlliance;
     }
 
+    //**TODO See comments in DistanceTransformRecognition regarding
+    // inversion.
     // Returns the result of image analysis.
      public RobotConstants.RecognitionResults recognizeGoldCubeWebcam(ImageProvider pImageProvider,
                                                                       VisionParameters.ImageParameters pImageParameters,

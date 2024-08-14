@@ -95,11 +95,12 @@ public class DistanceTransformRecognition {
         Mat invertedChannel = extractAndInvertChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
         // Follow the Python example and threshold the grayscale.
+        //## OTSU wotrks very well here.
         Mat thresholded = new Mat(); // output binary image
         Imgproc.threshold(invertedChannel, thresholded,
-                Math.abs(allianceGrayParameters.threshold_low),    // threshold value
+                0,
                 255,   // white
-                Imgproc.THRESH_BINARY); // thresholding type
+                Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU); // thresholding type
         RobotLogCommon.v(TAG, "Threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
 
         String thrFilename = pOutputFilenamePreamble + "_THR.png";
@@ -162,7 +163,10 @@ public class DistanceTransformRecognition {
 
     //**TODO If the pure pixel count is not good enough you may have to call
     // findContours and add filters for the width and height of the
-    // bounding box or the angle of the RotatedRect.
+    // bounding box or the angle of the RotatedRect. !! But even this might
+    // not work if the spike line is not filtered out by the distance
+    // transform and so becomes part of the contour with the team prop.
+    //**TODO Need an image with the team prop on the left spike.
     private RobotConstants.RecognitionResults colorChannelPixelCount(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
                                                                      DistanceParameters.ColorChannelPixelCountParameters pPixelCountParameters,
@@ -186,17 +190,9 @@ public class DistanceTransformRecognition {
 
         //## The distance transform tends to produce a diffuse result because the
         // values closest to white only occur near the center of an object such as
-        // the team prop. So arbitrarily use 1/2 of the low threshold value for the
-        // split channel grayscale.
-        //?? Is 1/2 good enough or do you need a separate value in the XML file?
+        // the team prop. But OTSU works fine here.
         Mat thresholded = new Mat();
-        Imgproc.threshold(pDistanceImage, thresholded, allianceThresholdLow / 2.0, 255, Imgproc.THRESH_BINARY);
-
-        int nonZeroCount = Core.countNonZero(thresholded);
-        RobotLogCommon.d(TAG, "White pixel count " + nonZeroCount);
-
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_PXC.png", thresholded);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_PXC.png");
+        Imgproc.threshold(pDistanceImage, thresholded, 0, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
 
         // Get the white pixel count for both the left and right recognition windows.
         Pair<Rect, RobotConstants.ObjectLocation> leftWindowData =
@@ -205,11 +201,19 @@ public class DistanceTransformRecognition {
         int leftNonZeroCount = Core.countNonZero(leftWindowBoundary);
         RobotLogCommon.d(TAG, "Left recognition window white pixel count " + leftNonZeroCount);
 
+        String leftPixelCountFilename = pOutputFilenamePreamble + "_PXCL.png";
+        Imgcodecs.imwrite(leftPixelCountFilename, leftWindowBoundary);
+        RobotLogCommon.d(TAG, "Writing " + leftPixelCountFilename);
+
         Pair<Rect, RobotConstants.ObjectLocation> rightWindowData =
                 pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.RIGHT);
         Mat rightWindowBoundary = thresholded.submat(rightWindowData.first);
         int rightNonZeroCount = Core.countNonZero(rightWindowBoundary);
         RobotLogCommon.d(TAG, "Right recognition window white pixel count " + rightNonZeroCount);
+
+        String rightPixelCountFilename = pOutputFilenamePreamble + "_PXCR.png";
+        Imgcodecs.imwrite(rightPixelCountFilename, rightWindowBoundary);
+        RobotLogCommon.d(TAG, "Writing " + rightPixelCountFilename);
 
         // If both counts are less than the minimum then we infer that
         // the object is in the third (non-visible) recognition window.
@@ -248,11 +252,14 @@ public class DistanceTransformRecognition {
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
-    //**TODO Propagate changes.
-    // Split the original image ROI into its BGR channels. The alliance
-    // determines which channel to pre-process and return. For better
-    // contrast the RED alliance uses the inversion of the blue channel
-    // and the BLUE alliance uses the inversion of the red channel.
+    //**TODO Propagate changes for channel extraction or make this a
+    // public method in ImageUtils and add an enum for INVERT or KEEP.
+    //**TODO Try this in GoldCubeRecognition.
+
+    // Extract the channel for the selected alliance from the original
+    // image ROI. For better contrast the RED alliance uses the inversion
+    // of the blue channel and the BLUE alliance uses the inversion of the
+    // red channel.
     private Mat extractAndInvertChannel(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
         Mat selectedChannel = new Mat();
         switch (pAlliance) {

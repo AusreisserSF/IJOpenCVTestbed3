@@ -6,30 +6,30 @@
         <actions>
             <DISTANCE>
                 <image_parameters>
-                    <image_source>front_webcam_03091117_25593_IMG.png</image_source>
+                    <image_source>front_webcam_02171137_37648_IMG.png</image_source>
                      <resolution>
                         <width>640</width>
                         <height>480</height>
                     </resolution>
                     <image_roi>
-                        <x>132</x>
-                        <y>160</y>
-                        <width>489</width>
-                        <height>248</height>
+                        <x>35</x>
+                        <y>185</y>
+                        <width>505</width>
+                        <height>215</height>
                     </image_roi>
                 </image_parameters>
                 <distance_recognition>
-                    <recognition_path>color_channel_bright_spot</recognition_path>
+                    <recognition_path>color_channel_pixel_count</recognition_path>
                     <recognition_window>
                         <left>
-                            <width>312</width>
-                            <object_location>CENTER</object_location>
+                            <width>180</width>
+                            <object_location>LEFT</object_location>
                         </left>
                         <right>
-                            <object_location>RIGHT</object_location>
+                            <object_location>CENTER</object_location>
                         </right>
                         <window_npos>
-                            <object_location>LEFT</object_location>
+                            <object_location>RIGHT</object_location>
                         </window_npos>
                     </recognition_window>
                 </distance_recognition>
