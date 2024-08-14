@@ -114,20 +114,17 @@ public class ImageUtils {
         return sharpMat;
     }
 
-    //## Imported from IJCenterStageVision.
-    // Split the original image ROI into its BGR channels. The alliance
-    // determines which channel to pre-process and return. For better
-    // contrast the RED alliance uses the inversion of the blue channel
-    // and the BLUE alliance uses the inversion of the red channel.
-    public static Mat splitAndInvertChannels(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
-        ArrayList<Mat> channels = new ArrayList<>(3);
-        Core.split(pImageROI, channels); // red or blue channel. B = 0, G = 1, R = 2
-        Mat selectedChannel;
+    // Extract the channel for the selected alliance from the original
+    // image ROI. For better contrast the RED alliance uses the inversion
+    // of the blue channel and the BLUE alliance uses the inversion of the
+    // red channel.
+    public static Mat extractAndInvertChannel(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
+        Mat selectedChannel = new Mat();
         switch (pAlliance) {
             case RED -> {
                 // The inversion of the blue channel gives better contrast
                 // than the red channel.
-                selectedChannel = channels.get(0);
+                Core.extractChannel(pImageROI, selectedChannel, 0);
                 Core.bitwise_not(selectedChannel, selectedChannel);
                 Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE_INVERTED.png", selectedChannel);
                 RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE_INVERTED.png");
@@ -135,7 +132,7 @@ public class ImageUtils {
             case BLUE -> {
                 // The inversion of the red channel gives better contrast
                 // than the blue channel.
-                selectedChannel = channels.get(2);
+                Core.extractChannel(pImageROI, selectedChannel, 2);
                 Core.bitwise_not(selectedChannel, selectedChannel);
                 Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_INVERTED.png", selectedChannel);
                 RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_INVERTED.png");
@@ -143,14 +140,22 @@ public class ImageUtils {
             default -> throw new AutonomousRobotException(TAG, "Alliance must be RED or BLUE");
         }
 
+        //**TODO This doesn't work unless you determine the median target
+        // of the individual channel; modify IJThresholdTester to log the
+        // median values of each channel after a split.
+
         // Always adjust the grayscale.
-        Mat adjustedGray = adjustGrayscaleMedian(selectedChannel,
-                pGrayParameters.median_target);
+        // TEMP commented out until you can get the right values ... Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel,
+        //        pGrayParameters.median_target);
 
-        Imgproc.erode(adjustedGray, adjustedGray, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
-        Imgproc.dilate(adjustedGray, adjustedGray, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3)));
+        Mat opened = new Mat();
+        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+        Imgproc.morphologyEx(selectedChannel, opened, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
 
-        return adjustedGray;
+        String openFilename = pOutputFilenamePreamble + "_OPEN.png";
+        Imgcodecs.imwrite(openFilename, opened);
+        RobotLogCommon.d(TAG, "Writing " + openFilename);
+        return opened;
     }
 
     // Adjust the median of a grayscale image.

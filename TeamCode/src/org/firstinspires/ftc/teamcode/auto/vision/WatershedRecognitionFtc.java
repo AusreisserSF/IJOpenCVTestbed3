@@ -79,8 +79,8 @@ public class WatershedRecognitionFtc {
         // kernel.
         Mat sharp = ImageUtils.sharpen(pImageROI, pOutputFilenamePreamble);
 
-        // Split the BGR image into its components; see the comments above the method.
-        Mat split = ImageUtils.splitAndInvertChannels(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
+        //**TODO RE-TEST Extract the opposing alliance's BGR channel from the image and invert.
+        Mat split = ImageUtils.extractAndInvertChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
         // Normalize lighting to a known good value.
         Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(split, allianceGrayParameters.median_target);

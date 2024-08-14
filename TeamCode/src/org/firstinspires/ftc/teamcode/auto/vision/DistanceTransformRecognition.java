@@ -92,15 +92,16 @@ public class DistanceTransformRecognition {
 
         // Extract the alliance channel from the BGR image and invert.
         // See the comments above the method.
-        Mat invertedChannel = extractAndInvertChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
+        Mat invertedChannel = ImageUtils.extractAndInvertChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
         // Follow the Python example and threshold the grayscale.
-        //## OTSU wotrks very well here.
+        //## Imgproc.THRESH_BINARY works better than OTSU here
+        // on bright spot recognition.
         Mat thresholded = new Mat(); // output binary image
         Imgproc.threshold(invertedChannel, thresholded,
-                0,
+                allianceGrayParameters.threshold_low,
                 255,   // white
-                Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU); // thresholding type
+                Imgproc.THRESH_BINARY); // Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU); // thresholding type
         RobotLogCommon.v(TAG, "Threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
 
         String thrFilename = pOutputFilenamePreamble + "_THR.png";
@@ -161,12 +162,6 @@ public class DistanceTransformRecognition {
                 pRecognitionWindowMapping.recognitionWindows);
     }
 
-    //**TODO If the pure pixel count is not good enough you may have to call
-    // findContours and add filters for the width and height of the
-    // bounding box or the angle of the RotatedRect. !! But even this might
-    // not work if the spike line is not filtered out by the distance
-    // transform and so becomes part of the contour with the team prop.
-    //**TODO Need an image with the team prop on the left spike.
     private RobotConstants.RecognitionResults colorChannelPixelCount(Mat pImageROI, Mat pDistanceImage,
                                                                      String pOutputFilenamePreamble,
                                                                      DistanceParameters.ColorChannelPixelCountParameters pPixelCountParameters,
@@ -194,6 +189,7 @@ public class DistanceTransformRecognition {
         Mat thresholded = new Mat();
         Imgproc.threshold(pDistanceImage, thresholded, 0, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
 
+        //**TODO lookThroughWindowsAtCenterPoint vs lookThroughWindowsAtPixelCount?
         // Get the white pixel count for both the left and right recognition windows.
         Pair<Rect, RobotConstants.ObjectLocation> leftWindowData =
                 pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.LEFT);
@@ -252,54 +248,7 @@ public class DistanceTransformRecognition {
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
-    //**TODO Propagate changes for channel extraction or make this a
-    // public method in ImageUtils and add an enum for INVERT or KEEP.
-    //**TODO Try this in GoldCubeRecognition.
-
-    // Extract the channel for the selected alliance from the original
-    // image ROI. For better contrast the RED alliance uses the inversion
-    // of the blue channel and the BLUE alliance uses the inversion of the
-    // red channel.
-    private Mat extractAndInvertChannel(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
-        Mat selectedChannel = new Mat();
-        switch (pAlliance) {
-            case RED -> {
-                // The inversion of the blue channel gives better contrast
-                // than the red channel.
-                Core.extractChannel(pImageROI, selectedChannel, 0);
-                Core.bitwise_not(selectedChannel, selectedChannel);
-                Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE_INVERTED.png", selectedChannel);
-                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE_INVERTED.png");
-            }
-            case BLUE -> {
-                // The inversion of the red channel gives better contrast
-                // than the blue channel.
-                Core.extractChannel(pImageROI, selectedChannel, 2);
-                Core.bitwise_not(selectedChannel, selectedChannel);
-                Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_INVERTED.png", selectedChannel);
-                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_INVERTED.png");
-            }
-            default -> throw new AutonomousRobotException(TAG, "Alliance must be RED or BLUE");
-        }
-
-        //**TODO This doesn't work unless you determine the median target
-        // of the individual channel; modify IJThresholdTester to log the
-        // median values of each channel after a split.
-
-        // Always adjust the grayscale.
-        // TEMP commented out until you can get the right values ... Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel,
-        //        pGrayParameters.median_target);
-
-        Mat opened = new Mat();
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.morphologyEx(selectedChannel, opened, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
-
-        String openFilename = pOutputFilenamePreamble + "_OPEN.png";
-        Imgcodecs.imwrite(openFilename, opened);
-        RobotLogCommon.d(TAG, "Writing " + openFilename);
-        return opened;
-    }
-
+    //**TODO To ImageUtils ...
     //## Imported from IJCenterStageVision.
     //## This sharpening filter makes a difference in marginal cases.
     // From OpencvTestbed3 (cpp) GrayscaleTechnique

@@ -15,7 +15,12 @@ import org.opencv.imgproc.Imgproc;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 
-//**TODO Try red
+//**TODO If you look at Marlborough's code, they use a very small
+// window (40x40 pixels) and all three CenterStage spikes must
+// be in view because the the saturation count is relative. But
+// the technique may still be useful for getting a grayscale
+// image.
+
 public class MeanSaturationRecognition {
 
     private static final String TAG = MeanSaturationRecognition.class.getSimpleName();

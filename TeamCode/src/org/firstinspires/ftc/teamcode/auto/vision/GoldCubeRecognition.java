@@ -4,15 +4,14 @@ import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.TimeStamp;
-import org.firstinspires.ftc.teamcode.auto.xml.GoldCubeParameters;
 import org.firstinspires.ftc.teamcode.auto.RobotConstants;
+import org.firstinspires.ftc.teamcode.auto.xml.GoldCubeParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Optional;
 
 public class GoldCubeRecognition {
@@ -37,8 +36,8 @@ public class GoldCubeRecognition {
         alliance = pAlliance;
     }
 
-    //**TODO See comments in DistanceTransformRecognition regarding
-    // inversion.
+    //## Inversion of the opposing alliance's BGR channel can yield
+    // good results. See DistanceTransformRecognition.
     // Returns the result of image analysis.
      public RobotConstants.RecognitionResults recognizeGoldCubeWebcam(ImageProvider pImageProvider,
                                                                       VisionParameters.ImageParameters pImageParameters,
@@ -71,15 +70,15 @@ public class GoldCubeRecognition {
     private RobotConstants.RecognitionResults redChannelPathWebcam(Mat pImageROI, String pOutputFilenamePreamble,
                                                                    GoldCubeParameters pGoldCubeParameters) {
 
-        //**TODO Use Core.extractChannel(2);
-        ArrayList<Mat> channels = new ArrayList<>(3);
-        Core.split(pImageROI, channels); // red or blue channel. B = 0, G = 1, R = 2
+        // Extract the red channel and then use it as grayscale.
+        Mat selectedChannel = new Mat();
+        Core.extractChannel(pImageROI, selectedChannel, 2);
 
         // Write out the red channel as grayscale.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_CHANNEL.png", channels.get(2));
+        Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_CHANNEL.png", selectedChannel);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_CHANNEL.png");
 
-        Mat thresholded = ImageUtils.performThresholdOnGray(channels.get(2), pOutputFilenamePreamble, pGoldCubeParameters.grayscaleParameters.median_target, pGoldCubeParameters.grayscaleParameters.threshold_low);
+        Mat thresholded = ImageUtils.performThresholdOnGray(selectedChannel, pOutputFilenamePreamble, pGoldCubeParameters.grayscaleParameters.median_target, pGoldCubeParameters.grayscaleParameters.threshold_low);
 
         Optional<Pair<Integer, MatOfPoint>> targetContour = ImageUtils.getLargestContour(pImageROI, thresholded, pOutputFilenamePreamble);
         if (!targetContour.isPresent()) {
