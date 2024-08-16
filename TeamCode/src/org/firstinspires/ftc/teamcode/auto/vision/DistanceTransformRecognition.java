@@ -4,16 +4,15 @@ import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.TimeStamp;
+import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 import org.firstinspires.ftc.teamcode.auto.xml.DistanceParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.RecognitionWindowMapping;
-import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 
 public class DistanceTransformRecognition {
 
@@ -88,7 +87,7 @@ public class DistanceTransformRecognition {
         }
 
         //##PY Apply a sharpening kernel to the color image.
-        Mat sharp = sharpen(pImageROI, pOutputFilenamePreamble);
+        Mat sharp = ImageUtils.sharpen(pImageROI, pOutputFilenamePreamble);
 
         // Extract the alliance channel from the BGR image and invert.
         // See the comments above the method.
@@ -167,18 +166,12 @@ public class DistanceTransformRecognition {
                                                                      DistanceParameters.ColorChannelPixelCountParameters pPixelCountParameters,
                                                                      RecognitionWindowMapping pRecognitionWindowMapping) {
 
-        // Use the threshold and pixel count criteria parameters for the current alliance.
-        int allianceThresholdLow;
+        // Use the pixel count criteria parameters for the current alliance.
         int allianceMinWhitePixelCount;
         switch (alliance) {
-            case RED -> {
-                allianceThresholdLow = pPixelCountParameters.redGrayParameters.threshold_low;
-                allianceMinWhitePixelCount = pPixelCountParameters.redMinWhitePixelCount;
-            }
-            case BLUE -> {
-                allianceThresholdLow = pPixelCountParameters.blueGrayParameters.threshold_low;
+            case RED -> allianceMinWhitePixelCount = pPixelCountParameters.redMinWhitePixelCount;
+            case BLUE ->
                 allianceMinWhitePixelCount = pPixelCountParameters.blueMinWhitePixelCount;
-            }
             default ->
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
@@ -246,39 +239,6 @@ public class DistanceTransformRecognition {
         RecognitionWindowUtils.drawRecognitionWindows(pixelCountOut, pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
-    }
-
-    //**TODO To ImageUtils ...
-    //## Imported from IJCenterStageVision.
-    //## This sharpening filter makes a difference in marginal cases.
-    // From OpencvTestbed3 (cpp) GrayscaleTechnique
-    // From https://stackoverflow.com/questions/27393401/opencv-in-java-for-image-filtering
-    private Mat sharpen(Mat pDullMat, String pOutputFilenamePreamble) {
-        int kernelSize = 3;
-        Mat kernel = new Mat(kernelSize, kernelSize, CvType.CV_32F) {
-            {
-                put(0, 0, 0);
-                put(0, 1, -1);
-                put(0, 2, 0);
-
-                put(1, 0, -1);
-                put(1, 1, 5);
-                put(1, 2, -1);
-
-                put(2, 0, 0);
-                put(2, 1, -1);
-                put(2, 2, 0);
-            }
-        };
-
-        Mat sharpMat = new Mat();
-        Imgproc.filter2D(pDullMat, sharpMat, -1, kernel);
-
-        String sharpFilename = pOutputFilenamePreamble + "_SHARP.png";
-        RobotLogCommon.d(TAG, "Writing " + sharpFilename);
-        Imgcodecs.imwrite(sharpFilename, sharpMat);
-
-        return sharpMat;
     }
 
 }

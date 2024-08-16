@@ -114,6 +114,9 @@ public class ImageUtils {
         return sharpMat;
     }
 
+    //**TODO Possible: extract channel with an enum for inversion. But
+    // note that IJThresholdTester does not use alliance, it uses
+    // GarAuto.ChannelSelection.
     // Extract the channel for the selected alliance from the original
     // image ROI. For better contrast the RED alliance uses the inversion
     // of the blue channel and the BLUE alliance uses the inversion of the
@@ -148,6 +151,7 @@ public class ImageUtils {
         // TEMP commented out until you can get the right values ... Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel,
         //        pGrayParameters.median_target);
 
+        //**TODO You may not want to do the opening here - depends on the client.
         Mat opened = new Mat();
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
         Imgproc.morphologyEx(selectedChannel, opened, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
@@ -174,7 +178,6 @@ public class ImageUtils {
     }
 
     // Adjust image saturation and value levels in the image to match the targets.
-    //**TODO How do you actually get the median targets? See IJThresholdTester.
     public static Mat adjustSaturationAndValueMedians(Mat pHSVImage, int pSatMedianTarget, int pValMedianTarget) {
         // Split the image into its constituent HSV channels
         ArrayList<Mat> channels = new ArrayList<>();
@@ -407,6 +410,7 @@ public class ImageUtils {
     }
 
     //**TODO Propagate changes to all IJ and AS projects ...
+    // IJThresholdTester DONE 8/16/2024.
     // Get the median of any single-channel Mat.
     public static int getSingleChannelMedian(Mat pSingleChannelMat) {
         if ((pSingleChannelMat.dims() != 2) || (!pSingleChannelMat.isContinuous()))
