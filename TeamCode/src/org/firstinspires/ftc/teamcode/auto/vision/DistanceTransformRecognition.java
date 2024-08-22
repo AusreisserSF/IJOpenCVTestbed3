@@ -89,7 +89,20 @@ public class DistanceTransformRecognition {
         //##PY Apply a sharpening kernel to the color image.
         Mat sharp = ImageUtils.sharpen(pImageROI, pOutputFilenamePreamble);
 
-        // Extract the alliance channel from the BGR image and invert.
+        //**TODO TEMP extract and retain channel but use inverted thresholding.
+        Mat oppositeChannel = ImageUtils.extractAndRetainChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
+        Mat invertedThreshold = new Mat(); // output binary image
+        Imgproc.threshold(oppositeChannel, invertedThreshold,
+                allianceGrayParameters.threshold_low,
+                255,   // white
+                Imgproc.THRESH_BINARY_INV);
+        RobotLogCommon.v(TAG, "Inverted threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
+
+        String invFilename = pOutputFilenamePreamble + "_THR_INV.png";
+        Imgcodecs.imwrite(invFilename, invertedThreshold);
+        RobotLogCommon.d(TAG, "Writing " + invFilename);
+
+        // Extract the *other* alliance channel from the BGR image and invert.
         // See the comments above the method.
         Mat invertedChannel = ImageUtils.extractAndInvertChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
