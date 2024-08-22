@@ -89,7 +89,11 @@ public class DistanceTransformRecognition {
         //##PY Apply a sharpening kernel to the color image.
         Mat sharp = ImageUtils.sharpen(pImageROI, pOutputFilenamePreamble);
 
+        //**TODO Why so fancy? - just use the red channel for the red alliance.
+        //**TODO Because the inversion of the opposing alliance channel IS better.
+
         //**TODO TEMP extract and retain channel but use inverted thresholding.
+        /*
         Mat oppositeChannel = ImageUtils.extractAndRetainChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
         Mat invertedThreshold = new Mat(); // output binary image
         Imgproc.threshold(oppositeChannel, invertedThreshold,
@@ -105,12 +109,15 @@ public class DistanceTransformRecognition {
         // Extract the *other* alliance channel from the BGR image and invert.
         // See the comments above the method.
         Mat invertedChannel = ImageUtils.extractAndInvertChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
+        */
+
+        Mat selectedChannel = ImageUtils.extractAndRetainChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
         // Follow the Python example and threshold the grayscale.
         //## Imgproc.THRESH_BINARY works better than OTSU here
         // on bright spot recognition.
         Mat thresholded = new Mat(); // output binary image
-        Imgproc.threshold(invertedChannel, thresholded,
+        Imgproc.threshold(selectedChannel, thresholded,
                 allianceGrayParameters.threshold_low,
                 255,   // white
                 Imgproc.THRESH_BINARY); // Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU); // thresholding type

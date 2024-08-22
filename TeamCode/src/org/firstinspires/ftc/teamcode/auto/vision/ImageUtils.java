@@ -137,7 +137,10 @@ public class ImageUtils {
                 // The inversion of the red channel gives better contrast
                 // than the blue channel.
                 Core.extractChannel(pImageROI, selectedChannel, 2);
-                Core.bitwise_not(selectedChannel, selectedChannel);
+                Mat xFF = new Mat(pImageROI.rows(), pImageROI.cols(), CvType.CV_8U, new Scalar(255));
+                Core.subtract(xFF, selectedChannel, selectedChannel);
+                //**TODO TEMP TEST
+                //Core.bitwise_not(selectedChannel, selectedChannel);
                 Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_INVERTED.png", selectedChannel);
                 RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_INVERTED.png");
             }
@@ -169,18 +172,14 @@ public class ImageUtils {
         Mat selectedChannel = new Mat();
         switch (pAlliance) {
             case RED -> {
-                // The inversion of the blue channel gives better contrast
-                // than the red channel.
-                Core.extractChannel(pImageROI, selectedChannel, 0);
-                Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE.png", selectedChannel);
-                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE.png");
-            }
-            case BLUE -> {
-                // The inversion of the red channel gives better contrast
-                // than the blue channel.
                 Core.extractChannel(pImageROI, selectedChannel, 2);
                 Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED.png", selectedChannel);
                 RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED.png");
+            }
+            case BLUE -> {
+                Core.extractChannel(pImageROI, selectedChannel, 0);
+                Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE.png", selectedChannel);
+                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE.png");
             }
             default -> throw new AutonomousRobotException(TAG, "Alliance must be RED or BLUE");
         }
