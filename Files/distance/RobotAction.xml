@@ -19,7 +19,7 @@
                     </image_roi>
                 </image_parameters>
                 <distance_recognition>
-                    <recognition_path>color_channel_pixel_count</recognition_path>
+                    <recognition_path>color_channel_bright_spot</recognition_path>
                     <recognition_window>
                         <left>
                             <width>180</width>

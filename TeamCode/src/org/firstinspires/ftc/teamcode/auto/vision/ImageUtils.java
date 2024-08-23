@@ -114,33 +114,29 @@ public class ImageUtils {
         return sharpMat;
     }
 
-    //**TODO This is suspect for grayscale images; see
-    // https://dsp.stackexchange.com/questions/58276/opencv-how-does-bitwise-not-work
-    // but the results are quite clean with our team props??
-    // See also https://forum.opencv.org/t/do-we-have-a-function-to-invert-gray-image-values/5902/2
+    // To invert a grayscale image use subtraction, e.g. c++ 255 - image
+    // See https://forum.opencv.org/t/do-we-have-a-function-to-invert-gray-image-values/5902/2
     // Extract the channel for the selected alliance from the original
     // image ROI. For better contrast the RED alliance uses the inversion
     // of the blue channel and the BLUE alliance uses the inversion of the
     // red channel.
-    public static Mat extractAndInvertChannel(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
+    public static Mat extractAndInvertOpposingAllianceChannel(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
         Mat selectedChannel = new Mat();
+        Mat xFF = new Mat(pImageROI.rows(), pImageROI.cols(), CvType.CV_8U, new Scalar(255));
         switch (pAlliance) {
             case RED -> {
                 // The inversion of the blue channel gives better contrast
                 // than the red channel.
-                Core.extractChannel(pImageROI, selectedChannel, 0);
-                Core.bitwise_not(selectedChannel, selectedChannel);
+                Core.extractChannel(pImageROI, selectedChannel, 0); // blue
+                Core.subtract(xFF, selectedChannel, selectedChannel);
                 Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE_INVERTED.png", selectedChannel);
                 RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE_INVERTED.png");
             }
             case BLUE -> {
                 // The inversion of the red channel gives better contrast
                 // than the blue channel.
-                Core.extractChannel(pImageROI, selectedChannel, 2);
-                Mat xFF = new Mat(pImageROI.rows(), pImageROI.cols(), CvType.CV_8U, new Scalar(255));
+                Core.extractChannel(pImageROI, selectedChannel, 2); // red
                 Core.subtract(xFF, selectedChannel, selectedChannel);
-                //**TODO TEMP TEST
-                //Core.bitwise_not(selectedChannel, selectedChannel);
                 Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_INVERTED.png", selectedChannel);
                 RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_INVERTED.png");
             }
@@ -148,52 +144,16 @@ public class ImageUtils {
         }
 
         //**TODO This doesn't work unless you determine the median target
-        // of the individual channel; modify IJThresholdTester to log the
+        // of each individual channel; modify IJThresholdTester to log the
         // median values of each channel after a split. This can only work
         // with a known good RGB original image.
 
+        //**TODO This also needs to be done *befoe* the inversion.
         // Always adjust the grayscale.
         // TEMP commented out until you can get the right values ... Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel,
         //        pGrayParameters.median_target);
 
-        //**TODO You may not want to do the opening here - depends on the client.
-        Mat opened = new Mat();
-        Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.morphologyEx(selectedChannel, opened, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
-
-        String openFilename = pOutputFilenamePreamble + "_OPEN.png";
-        Imgcodecs.imwrite(openFilename, opened);
-        RobotLogCommon.d(TAG, "Writing " + openFilename);
-        return opened;
-    }
-
-    //**TODO TEMP to test inverted thresholding
-    public static Mat extractAndRetainChannel(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
-        Mat selectedChannel = new Mat();
-        switch (pAlliance) {
-            case RED -> {
-                Core.extractChannel(pImageROI, selectedChannel, 2);
-                Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED.png", selectedChannel);
-                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED.png");
-            }
-            case BLUE -> {
-                Core.extractChannel(pImageROI, selectedChannel, 0);
-                Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE.png", selectedChannel);
-                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE.png");
-            }
-            default -> throw new AutonomousRobotException(TAG, "Alliance must be RED or BLUE");
-        }
-
-        //**TODO This doesn't work unless you determine the median target
-        // of the individual channel; modify IJThresholdTester to log the
-        // median values of each channel after a split. This can only work
-        // with a known good RGB original image.
-
-        // Always adjust the grayscale.
-        // TEMP commented out until you can get the right values ... Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel,
-        //        pGrayParameters.median_target);
-
-        //**TODO You may not want to do the opening here - depends on the client.
+        //## You may not want to do the opening here - depends on the client.
         Mat opened = new Mat();
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
         Imgproc.morphologyEx(selectedChannel, opened, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);

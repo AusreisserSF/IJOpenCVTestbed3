@@ -89,35 +89,15 @@ public class DistanceTransformRecognition {
         //##PY Apply a sharpening kernel to the color image.
         Mat sharp = ImageUtils.sharpen(pImageROI, pOutputFilenamePreamble);
 
-        //**TODO Why so fancy? - just use the red channel for the red alliance.
-        //**TODO Because the inversion of the opposing alliance channel IS better.
-
-        //**TODO TEMP extract and retain channel but use inverted thresholding.
-        /*
-        Mat oppositeChannel = ImageUtils.extractAndRetainChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
-        Mat invertedThreshold = new Mat(); // output binary image
-        Imgproc.threshold(oppositeChannel, invertedThreshold,
-                allianceGrayParameters.threshold_low,
-                255,   // white
-                Imgproc.THRESH_BINARY_INV);
-        RobotLogCommon.v(TAG, "Inverted threshold values: low " + allianceGrayParameters.threshold_low + ", high 255");
-
-        String invFilename = pOutputFilenamePreamble + "_THR_INV.png";
-        Imgcodecs.imwrite(invFilename, invertedThreshold);
-        RobotLogCommon.d(TAG, "Writing " + invFilename);
-
-        // Extract the *other* alliance channel from the BGR image and invert.
-        // See the comments above the method.
-        Mat invertedChannel = ImageUtils.extractAndInvertChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
-        */
-
-        Mat selectedChannel = ImageUtils.extractAndRetainChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
+        //## The inversion of the opposing alliance's channel gives better
+        // contrast than the alliance's channel itself.
+        Mat invertedChannel = ImageUtils.extractAndInvertOpposingAllianceChannel(sharp, alliance, allianceGrayParameters, pOutputFilenamePreamble);
 
         // Follow the Python example and threshold the grayscale.
         //## Imgproc.THRESH_BINARY works better than OTSU here
         // on bright spot recognition.
         Mat thresholded = new Mat(); // output binary image
-        Imgproc.threshold(selectedChannel, thresholded,
+        Imgproc.threshold(invertedChannel, thresholded,
                 allianceGrayParameters.threshold_low,
                 255,   // white
                 Imgproc.THRESH_BINARY); // Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU); // thresholding type
@@ -172,6 +152,7 @@ public class DistanceTransformRecognition {
         //## We need a lower threshold for the distance image since it has undergone two
         // morphological openings. Arbitrarily use 1/2 of the low threshold value for the
         // split channel grayscale.
+        //!! NOTE: this will not work if we're using inverted thresholding.
         if (brightResult.maxVal < allianceGrayParameters.threshold_low / 2.0) {
             RobotLogCommon.d(TAG, "Bright spot value was under the threshold");
             return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
@@ -201,6 +182,11 @@ public class DistanceTransformRecognition {
         // the team prop. But OTSU works fine here.
         Mat thresholded = new Mat();
         Imgproc.threshold(pDistanceImage, thresholded, 0, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
+
+        // Output post-distance thresholded image.
+        String thrFilename = pOutputFilenamePreamble + "_THR2.png";
+        Imgcodecs.imwrite(thrFilename, thresholded);
+        RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
         //**TODO lookThroughWindowsAtCenterPoint vs lookThroughWindowsAtPixelCount?
         // Get the white pixel count for both the left and right recognition windows.
