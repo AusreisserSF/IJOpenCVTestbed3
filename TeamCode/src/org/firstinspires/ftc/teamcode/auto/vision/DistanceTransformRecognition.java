@@ -158,7 +158,7 @@ public class DistanceTransformRecognition {
             return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
         }
 
-        return RecognitionWindowUtils.lookThroughWindows(brightResult.maxLoc, brightSpotOut, pOutputFilenamePreamble,
+        return RecognitionWindowUtils.lookThroughWindowsAtCenterPoint(brightResult.maxLoc, brightSpotOut, pOutputFilenamePreamble,
                 pRecognitionWindowMapping.recognitionWindows);
     }
 
@@ -171,8 +171,7 @@ public class DistanceTransformRecognition {
         int allianceMinWhitePixelCount;
         switch (alliance) {
             case RED -> allianceMinWhitePixelCount = pPixelCountParameters.redMinWhitePixelCount;
-            case BLUE ->
-                allianceMinWhitePixelCount = pPixelCountParameters.blueMinWhitePixelCount;
+            case BLUE -> allianceMinWhitePixelCount = pPixelCountParameters.blueMinWhitePixelCount;
             default ->
                     throw new AutonomousRobotException(TAG, "colorChannelPixelCountPath requires an alliance selection");
         }
@@ -188,63 +187,8 @@ public class DistanceTransformRecognition {
         Imgcodecs.imwrite(thrFilename, thresholded);
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
-        //**TODO lookThroughWindowsAtCenterPoint vs lookThroughWindowsAtPixelCount?
-        // Get the white pixel count for both the left and right recognition windows.
-        Pair<Rect, RobotConstants.ObjectLocation> leftWindowData =
-                pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.LEFT);
-        Mat leftWindowBoundary = thresholded.submat(leftWindowData.first);
-        int leftNonZeroCount = Core.countNonZero(leftWindowBoundary);
-        RobotLogCommon.d(TAG, "Left recognition window white pixel count " + leftNonZeroCount);
-
-        String leftPixelCountFilename = pOutputFilenamePreamble + "_PXCL.png";
-        Imgcodecs.imwrite(leftPixelCountFilename, leftWindowBoundary);
-        RobotLogCommon.d(TAG, "Writing " + leftPixelCountFilename);
-
-        Pair<Rect, RobotConstants.ObjectLocation> rightWindowData =
-                pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.RIGHT);
-        Mat rightWindowBoundary = thresholded.submat(rightWindowData.first);
-        int rightNonZeroCount = Core.countNonZero(rightWindowBoundary);
-        RobotLogCommon.d(TAG, "Right recognition window white pixel count " + rightNonZeroCount);
-
-        String rightPixelCountFilename = pOutputFilenamePreamble + "_PXCR.png";
-        Imgcodecs.imwrite(rightPixelCountFilename, rightWindowBoundary);
-        RobotLogCommon.d(TAG, "Writing " + rightPixelCountFilename);
-
-        // If both counts are less than the minimum then we infer that
-        // the object is in the third (non-visible) recognition window.
-        if (leftNonZeroCount < allianceMinWhitePixelCount &&
-                rightNonZeroCount < allianceMinWhitePixelCount) {
-            Pair<Rect, RobotConstants.ObjectLocation> nposWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.WINDOW_NPOS);
-            RobotLogCommon.d(TAG, "White pixel counts for the left and right recognition windows were under the threshold");
-            RobotLogCommon.d(TAG, "The object location is " + nposWindowData.second);
-            RecognitionWindowUtils.drawRecognitionWindows(pImageROI.clone(), pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
-            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
-        }
-
-        // Compare the white pixel count in the left and right recognition
-        // windows against each other.
-        Mat pixelCountOut = pImageROI.clone();
-        if (leftNonZeroCount >= rightNonZeroCount) {
-            Point leftWindowCentroid = new Point((leftWindowData.first.x + leftWindowData.first.width) / 2.0,
-                    (leftWindowData.first.y + leftWindowData.first.height) / 2.0);
-            RobotLogCommon.d(TAG, "Center of left recognition window " + leftWindowCentroid);
-            RobotLogCommon.d(TAG, "The object location is " + leftWindowData.second);
-
-            Imgproc.circle(pixelCountOut, leftWindowCentroid, 10, new Scalar(0, 255, 0));
-            RecognitionWindowUtils.drawRecognitionWindows(pixelCountOut, pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
-            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
-        }
-
-        // Go with the right recognition window.
-        Point rightWindowCentroid = new Point(rightWindowData.first.x + (rightWindowData.first.width / 2.0),
-                (rightWindowData.first.y + rightWindowData.first.height) / 2.0);
-        RobotLogCommon.d(TAG, "The object location is " + rightWindowData.second);
-        RobotLogCommon.d(TAG, "Center of right recognition window " + rightWindowCentroid);
-
-        Imgproc.circle(pixelCountOut, rightWindowCentroid, 10, new Scalar(0, 255, 0));
-        RecognitionWindowUtils.drawRecognitionWindows(pixelCountOut, pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
-
-        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+        return RecognitionWindowUtils.lookThroughWindowsAtPixelCount(thresholded, allianceMinWhitePixelCount,
+                pImageROI, pOutputFilenamePreamble, pRecognitionWindowMapping);
     }
 
 }

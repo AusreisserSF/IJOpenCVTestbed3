@@ -4,10 +4,8 @@ import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.teamcode.auto.RobotConstants;
-import org.opencv.core.Mat;
-import org.opencv.core.Point;
-import org.opencv.core.Rect;
-import org.opencv.core.Scalar;
+import org.firstinspires.ftc.teamcode.auto.xml.RecognitionWindowMapping;
+import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
@@ -17,11 +15,73 @@ public class RecognitionWindowUtils {
 
     private static final String TAG = RecognitionWindowUtils.class.getSimpleName();
 
+    public static RobotConstants.RecognitionResults lookThroughWindowsAtPixelCount(Mat pThresholdedObject, int pAllianceMinWhitePixelCount,
+                                                                                   Mat pImageROI, String pOutputFilenamePreamble,
+                                                                                   RecognitionWindowMapping pRecognitionWindowMapping) {
+        Pair<Rect, RobotConstants.ObjectLocation> leftWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.LEFT);
+        Pair<Rect, RobotConstants.ObjectLocation> rightWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.RIGHT);
+        Pair<Rect, RobotConstants.ObjectLocation> nposWindowData = pRecognitionWindowMapping.recognitionWindows.get(RobotConstants.RecognitionWindow.WINDOW_NPOS);
+        RobotConstants.ObjectLocation foundLocation;
+
+        Mat leftWindowBoundary = pThresholdedObject.submat(leftWindowData.first);
+        int leftNonZeroCount = Core.countNonZero(leftWindowBoundary);
+        RobotLogCommon.d(TAG, "Left recognition window white pixel count " + leftNonZeroCount);
+
+        String leftPixelCountFilename = pOutputFilenamePreamble + "_PXCL.png";
+        Imgcodecs.imwrite(leftPixelCountFilename, leftWindowBoundary);
+        RobotLogCommon.d(TAG, "Writing " + leftPixelCountFilename);
+
+        Mat rightWindowBoundary = pThresholdedObject.submat(rightWindowData.first);
+        int rightNonZeroCount = Core.countNonZero(rightWindowBoundary);
+        RobotLogCommon.d(TAG, "Right recognition window white pixel count " + rightNonZeroCount);
+
+        String rightPixelCountFilename = pOutputFilenamePreamble + "_PXCR.png";
+        Imgcodecs.imwrite(rightPixelCountFilename, rightWindowBoundary);
+        RobotLogCommon.d(TAG, "Writing " + rightPixelCountFilename);
+
+        // If both counts are less than the minimum then we infer that
+        // the object is in the third (non-visible) recognition window.
+        if (leftNonZeroCount < pAllianceMinWhitePixelCount &&
+                rightNonZeroCount < pAllianceMinWhitePixelCount) {
+            RobotLogCommon.d(TAG, "White pixel counts for the left and right recognition windows were under the threshold");
+            RobotLogCommon.d(TAG, "The object location is " + nposWindowData.second);
+            RecognitionWindowUtils.drawRecognitionWindows(pImageROI.clone(), pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
+            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+        }
+
+        // Compare the white pixel count in the left and right recognition
+        // windows against each other.
+        Mat pixelCountOut = pImageROI.clone();
+        if (leftNonZeroCount >= rightNonZeroCount) {
+            Point leftWindowCentroid = new Point((leftWindowData.first.x + leftWindowData.first.width) / 2.0,
+                    (leftWindowData.first.y + leftWindowData.first.height) / 2.0);
+            RobotLogCommon.d(TAG, "Center of left recognition window " + leftWindowCentroid);
+            RobotLogCommon.d(TAG, "The object location is " + leftWindowData.second);
+
+            Imgproc.circle(pixelCountOut, leftWindowCentroid, 10, new Scalar(0, 255, 0));
+            RecognitionWindowUtils.drawRecognitionWindows(pixelCountOut, pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
+            return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+        }
+
+        // Go with the right recognition window.
+        Point rightWindowCentroid = new Point(rightWindowData.first.x + (rightWindowData.first.width / 2.0),
+                (rightWindowData.first.y + rightWindowData.first.height) / 2.0);
+        RobotLogCommon.d(TAG, "The object location is " + rightWindowData.second);
+        RobotLogCommon.d(TAG, "Center of right recognition window " + rightWindowCentroid);
+
+        Imgproc.circle(pixelCountOut, rightWindowCentroid, 10, new Scalar(0, 255, 0));
+        RecognitionWindowUtils.drawRecognitionWindows(pixelCountOut, pOutputFilenamePreamble, pRecognitionWindowMapping.recognitionWindows);
+
+        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+    }
+
+    //## Used in FtcPowerPlay for testing circle detection and bright spot
+    // detection - neither was adopted.
     // Look through the left and right recognition windows and determine which
     // the selected object is in - or neither. Also draw the boundaries of the
     // windows.
-    public static RobotConstants.RecognitionResults lookThroughWindows(Point pCenterOfObject, Mat pRecognitionObjectOut, String pOutputFilenamePreamble,
-                                                                       EnumMap<RobotConstants.RecognitionWindow, Pair<Rect, RobotConstants.ObjectLocation>> pRecognitionWindows) {
+    public static RobotConstants.RecognitionResults lookThroughWindowsAtCenterPoint(Point pCenterOfObject, Mat pRecognitionObjectOut, String pOutputFilenamePreamble,
+                                                                                    EnumMap<RobotConstants.RecognitionWindow, Pair<Rect, RobotConstants.ObjectLocation>> pRecognitionWindows) {
         Pair<Rect, RobotConstants.ObjectLocation> leftWindowData = pRecognitionWindows.get(RobotConstants.RecognitionWindow.LEFT);
         Pair<Rect, RobotConstants.ObjectLocation> rightWindowData = pRecognitionWindows.get(RobotConstants.RecognitionWindow.RIGHT);
         Pair<Rect, RobotConstants.ObjectLocation> nposWindowData = pRecognitionWindows.get(RobotConstants.RecognitionWindow.WINDOW_NPOS);
