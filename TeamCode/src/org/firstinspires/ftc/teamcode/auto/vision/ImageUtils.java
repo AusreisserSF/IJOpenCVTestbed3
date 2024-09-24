@@ -120,7 +120,7 @@ public class ImageUtils {
     // image ROI. For better contrast the RED alliance uses the inversion
     // of the blue channel and the BLUE alliance uses the inversion of the
     // red channel.
-    //**TODO Logic imported from IJThresholdTester - re-test DistanceTransform.
+    // Logic imported from IJThresholdTester on 9/23/2024.
     public static Mat extractAndInvertOpposingAllianceChannel(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
         Mat selectedChannel = new Mat();
         switch (pAlliance) {
@@ -146,12 +146,12 @@ public class ImageUtils {
         // Write out the inverted image.
         switch (pAlliance) {
             case RED -> {
-                Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_INVERTED.png", invertedChannel);
-                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_INVERTED.png");
-            }
-            case BLUE -> {
                 Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE_INVERTED.png", invertedChannel);
                 RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE_INVERTED.png");
+            }
+            case BLUE -> {
+                Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_INVERTED.png", invertedChannel);
+                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_INVERTED.png");
             }
             default -> throw new AutonomousRobotException(TAG, "Alliance must be RED or BLUE");
         }
