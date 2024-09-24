@@ -59,7 +59,7 @@ public class ImageUtils {
     }
 
     public static Mat preProcessImage(Mat pOriginalImage,
-                               String pPreamble, VisionParameters.ImageParameters pImageParameters) {
+                                      String pPreamble, VisionParameters.ImageParameters pImageParameters) {
         if ((pOriginalImage.cols() != pImageParameters.resolution_width) ||
                 (pOriginalImage.rows() != pImageParameters.resolution_height))
             throw new AutonomousRobotException(TAG,
@@ -120,43 +120,46 @@ public class ImageUtils {
     // image ROI. For better contrast the RED alliance uses the inversion
     // of the blue channel and the BLUE alliance uses the inversion of the
     // red channel.
+    //**TODO Logic imported from IJThresholdTester - re-test DistanceTransform.
     public static Mat extractAndInvertOpposingAllianceChannel(Mat pImageROI, RobotConstants.Alliance pAlliance, VisionParameters.GrayParameters pGrayParameters, String pOutputFilenamePreamble) {
         Mat selectedChannel = new Mat();
-        Mat xFF = new Mat(pImageROI.rows(), pImageROI.cols(), CvType.CV_8U, new Scalar(255));
         switch (pAlliance) {
-            case RED -> {
+            case RED ->
                 // The inversion of the blue channel gives better contrast
                 // than the red channel.
-                Core.extractChannel(pImageROI, selectedChannel, 0); // blue
-                Core.subtract(xFF, selectedChannel, selectedChannel);
-                Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE_INVERTED.png", selectedChannel);
-                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE_INVERTED.png");
-            }
-            case BLUE -> {
+                    Core.extractChannel(pImageROI, selectedChannel, 0); // blue
+            case BLUE ->
                 // The inversion of the red channel gives better contrast
                 // than the blue channel.
-                Core.extractChannel(pImageROI, selectedChannel, 2); // red
-                Core.subtract(xFF, selectedChannel, selectedChannel);
-                Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_INVERTED.png", selectedChannel);
+                    Core.extractChannel(pImageROI, selectedChannel, 2); // red
+            default -> throw new AutonomousRobotException(TAG, "Alliance must be RED or BLUE");
+        }
+
+        // First adjust the selected channel fo lighting.
+        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel, pGrayParameters.median_target);
+
+        // Now you can invert the channel.
+        Mat invertedChannel = new Mat();
+        Mat xFF = new Mat(pImageROI.rows(), pImageROI.cols(), CvType.CV_8U, new Scalar(255));
+        Core.subtract(xFF, adjustedGray, invertedChannel);
+
+        // Write out the inverted image.
+        switch (pAlliance) {
+            case RED -> {
+                Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_INVERTED.png", invertedChannel);
                 RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_INVERTED.png");
+            }
+            case BLUE -> {
+                Imgcodecs.imwrite(pOutputFilenamePreamble + "_BLUE_INVERTED.png", invertedChannel);
+                RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BLUE_INVERTED.png");
             }
             default -> throw new AutonomousRobotException(TAG, "Alliance must be RED or BLUE");
         }
 
-        //**TODO This doesn't work unless you determine the median target
-        // of each individual channel; modify IJThresholdTester to log the
-        // median values of each channel after a split. This can only work
-        // with a known good RGB original image.
-
-        //**TODO This also needs to be done *befoe* the inversion.
-        // Always adjust the grayscale.
-        // TEMP commented out until you can get the right values ... Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(selectedChannel,
-        //        pGrayParameters.median_target);
-
         //## You may not want to do the opening here - depends on the client.
         Mat opened = new Mat();
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.morphologyEx(selectedChannel, opened, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
+        Imgproc.morphologyEx(invertedChannel, opened, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
 
         String openFilename = pOutputFilenamePreamble + "_OPEN.png";
         Imgcodecs.imwrite(openFilename, opened);
@@ -264,7 +267,7 @@ public class ImageUtils {
         Imgproc.cvtColor(pInputROI, hsvROI, Imgproc.COLOR_BGR2HSV);
 
         // Adjust the HSV saturation and value levels in the image to match the targets.
-        Mat adjusted = adjustSaturationAndValueMedians(hsvROI, pHSVParameters.saturation_median_target,  pHSVParameters.value_median_target);
+        Mat adjusted = adjustSaturationAndValueMedians(hsvROI, pHSVParameters.saturation_median_target, pHSVParameters.value_median_target);
 
         // Convert back to BGR.
         if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable("v")) {
@@ -274,7 +277,7 @@ public class ImageUtils {
             RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_ADJ" + pFilenameSuffix + ".png");
         }
 
-         Mat thresholded = applyInRange(adjusted,  pHSVParameters.hue_low, pHSVParameters.hue_high,
+        Mat thresholded = applyInRange(adjusted, pHSVParameters.hue_low, pHSVParameters.hue_high,
                 pHSVParameters.saturation_threshold_low, pHSVParameters.value_threshold_low);
 
         if (pOutputFilenamePreamble != null) {
@@ -296,8 +299,7 @@ public class ImageUtils {
         RobotLogCommon.d(TAG, "Actual inRange HSV arguments: saturation low " + pSatLowThreshold + ", value low " + pValLowThreshold);
 
         // Sanity check for hue.
-        if (!((pHueLow >= 0 && pHueLow <= 180) && (pHueHigh >= 0 && pHueHigh <= 180) &&
-                (pHueLow != pHueHigh)))
+        if (!((pHueLow >= 0 && pHueLow <= 180) && (pHueHigh >= 0 && pHueHigh <= 180)))
             throw new AutonomousRobotException(TAG, "Hue out of range");
 
         // Normal hue range.
@@ -354,7 +356,7 @@ public class ImageUtils {
     // adjusting the grayscale image to a target, performing
     // morphological opening, blurring the image, and thresholding it.
     public static Mat convertToGrayAndThreshold(Mat pBGRInputROI, String pOutputFilenamePreamble,
-                                       int pGrayscaleMedianTarget, int pLowThreshold) {
+                                                int pGrayscaleMedianTarget, int pLowThreshold) {
         // We're on the grayscale path.
         Mat grayROI = new Mat();
         Imgproc.cvtColor(pBGRInputROI, grayROI, Imgproc.COLOR_BGR2GRAY);
@@ -456,7 +458,7 @@ public class ImageUtils {
     // Get the contours from a thresholded image, optionally draw them, and return a
     // Pair of the number of contours and the largest contour.
     public static Optional<Pair<Integer, MatOfPoint>> getLargestContour(Mat pImageROI, Mat pThresholded,
-                                                         String pOutputFilenamePreamble) {
+                                                                        String pOutputFilenamePreamble) {
         // Identify the contours.
         List<MatOfPoint> contours = new ArrayList<>();
         Imgproc.findContours(pThresholded, contours, new Mat(), Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
