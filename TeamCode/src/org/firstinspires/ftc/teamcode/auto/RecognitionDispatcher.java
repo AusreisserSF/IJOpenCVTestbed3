@@ -270,46 +270,34 @@ public class RecognitionDispatcher extends Application {
                         "Test standard OpenCV Watershed");
             }
 
-            case "MEAN_SATURATION" -> {
-                //**TEMP - use watershed parameters ...
-                WatershedParametersFtcXML watershedParametersFtcXML = new WatershedParametersFtcXML(fullTestCaseDir);
-                WatershedParametersFtc watershedParametersFtc = watershedParametersFtcXML.getWatershedParameters();
-
+            case "HSV_CHANNELS" -> {
                 // Get the <image_parameters> from the RobotAction XML file.
-                VisionParameters.ImageParameters watershedImageParameters =
+                VisionParameters.ImageParameters hsvcImageParameters =
                         robotActionXML.getImageParametersFromXPath(actionElement, "image_parameters");
 
                 // Make sure that this tester is reading the image from a file.
-                if (!(watershedImageParameters.image_source.endsWith(".png") ||
-                        watershedImageParameters.image_source.endsWith(".jpg")))
+                if (!(hsvcImageParameters.image_source.endsWith(".png") ||
+                        hsvcImageParameters.image_source.endsWith(".jpg")))
                     throw new AutonomousRobotException(TAG, "Invalid image file name");
 
-                imageFilename = watershedImageParameters.image_source;
-                ImageProvider fileImage = new FileImage(fullTestCaseDir + watershedImageParameters.image_source);
+                imageFilename = hsvcImageParameters.image_source;
+                ImageProvider fileImage = new FileImage(fullTestCaseDir + hsvcImageParameters.image_source);
 
                 // Perform image recognition.
                 // Get the recognition path from the XML file.
-                String recognitionPathString = actionXPath.getRequiredText("mean_saturation_recognition/recognition_path");
-                MeanSaturationRecognition.MeanSaturationRecognitionPath medianSaturationRecognitionPath =
-                        MeanSaturationRecognition.MeanSaturationRecognitionPath.valueOf(recognitionPathString.toUpperCase());
-
-                RobotLogCommon.d(TAG, "Recognition path " + medianSaturationRecognitionPath);
-                RecognitionWindowMappingXML recognitionWindowMappingXML = new RecognitionWindowMappingXML(robotActionFilename);
-                RecognitionWindowMapping opModeRecognitionWindowMapping =
-                        recognitionWindowMappingXML.collectRecognitionWindowMapping(RobotConstants.OpMode.TEST, actionName);
-
-                if (opModeRecognitionWindowMapping == null)
-                    throw new AutonomousRobotException(TAG, "Action element " + actionName + " not found under OpMode TEST");
+                String recognitionPathString = actionXPath.getRequiredText("hsv_channel_recognition/recognition_path");
+                //**TODO later HSVChannelRecognition.ChannelRecognitionPath hsvChannelRecognitionPath =
+                //        HSVChannelRecognition.ChannelRecognitionPath.valueOf(recognitionPathString.toUpperCase());
+                //RobotLogCommon.d(TAG, "Recognition path " + hsvChannelRecognitionPath);
 
                 // Perform image recognition.
-                MeanSaturationRecognition medianSaturationRecognition = new MeanSaturationRecognition(alliance, fullTestCaseDir);
-                RobotConstants.RecognitionResults medianSaturationReturn =
-                        medianSaturationRecognition.performMeanSaturation(fileImage, watershedImageParameters,
-                                medianSaturationRecognitionPath, watershedParametersFtc, opModeRecognitionWindowMapping);
+                HSVChannelRecognition hsvChannelRecognition = new HSVChannelRecognition(alliance, fullTestCaseDir);
+                RobotConstants.RecognitionResults hsvChannelReturn =
+                        hsvChannelRecognition.splitHSVChannels(fileImage, hsvcImageParameters);
 
                 displayResults(fullTestCaseDir + imageFilename,
-                        buildResultsOnlyDisplayText(imageFilename, medianSaturationReturn),
-                        "Test mean saturation");
+                        buildResultsOnlyDisplayText(imageFilename, hsvChannelReturn),
+                        "Test HSV channel splitting");
             }
 
             default -> throw new AutonomousRobotException(TAG, "Unrecognized image recognition action");
