@@ -270,7 +270,7 @@ public class RecognitionDispatcher extends Application {
                         "Test standard OpenCV Watershed");
             }
 
-            case "HSV_CHANNELS" -> {
+            case "COLOR_CHANNELS" -> {
                 // Get the <image_parameters> from the RobotAction XML file.
                 VisionParameters.ImageParameters hsvcImageParameters =
                         robotActionXML.getImageParametersFromXPath(actionElement, "image_parameters");
@@ -285,19 +285,19 @@ public class RecognitionDispatcher extends Application {
 
                 // Perform image recognition.
                 // Get the recognition path from the XML file.
-                String recognitionPathString = actionXPath.getRequiredText("hsv_channel_recognition/recognition_path");
-                //**TODO later HSVChannelRecognition.ChannelRecognitionPath hsvChannelRecognitionPath =
-                //        HSVChannelRecognition.ChannelRecognitionPath.valueOf(recognitionPathString.toUpperCase());
+                String recognitionPathString = actionXPath.getRequiredText("color_channel_recognition/recognition_path");
+                //**TODO later ColorChannelRecognition.ChannelRecognitionPath colorChannelRecognitionPath =
+                //        ColorChannelRecognition.ChannelRecognitionPath.valueOf(recognitionPathString.toUpperCase());
                 //RobotLogCommon.d(TAG, "Recognition path " + hsvChannelRecognitionPath);
 
                 // Perform image recognition.
-                HSVChannelRecognition hsvChannelRecognition = new HSVChannelRecognition(alliance, fullTestCaseDir);
+                ColorChannelRecognition colorChannelRecognition = new ColorChannelRecognition(alliance, fullTestCaseDir);
                 RobotConstants.RecognitionResults hsvChannelReturn =
-                        hsvChannelRecognition.splitHSVChannels(fileImage, hsvcImageParameters);
+                        colorChannelRecognition.splitColorChannels(fileImage, hsvcImageParameters);
 
                 displayResults(fullTestCaseDir + imageFilename,
                         buildResultsOnlyDisplayText(imageFilename, hsvChannelReturn),
-                        "Test HSV channel splitting");
+                        "Test color channel splitting");
             }
 
             default -> throw new AutonomousRobotException(TAG, "Unrecognized image recognition action");

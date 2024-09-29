@@ -15,22 +15,22 @@ import java.time.LocalDateTime;
 // Investigate channel splitting of an HSV image as described in --
 // https://stackoverflow.com/questions/75759216/how-do-i-reliably-classify-colours-as-red-yellow-or-other-colours-in-opencv
 
-public class HSVChannelRecognition {
+public class ColorChannelRecognition {
 
-    private static final String TAG = HSVChannelRecognition.class.getSimpleName();
+    private static final String TAG = ColorChannelRecognition.class.getSimpleName();
 
     private final RobotConstants.Alliance alliance;
     private final String testCaseDirectory;
 
-    public HSVChannelRecognition(RobotConstants.Alliance pAlliance, String pTestCaseDirectory) {
+    public ColorChannelRecognition(RobotConstants.Alliance pAlliance, String pTestCaseDirectory) {
         alliance = pAlliance;
         testCaseDirectory = pTestCaseDirectory;
     }
 
     // Returns the result of image analysis.
-    public RobotConstants.RecognitionResults splitHSVChannels(ImageProvider pImageProvider,
-                                                              VisionParameters.ImageParameters pImageParameters) throws InterruptedException {
-        RobotLogCommon.d(TAG, "In HSVChannelRecognition.splitHSVChannels");
+    public RobotConstants.RecognitionResults splitColorChannels(ImageProvider pImageProvider,
+                                                                VisionParameters.ImageParameters pImageParameters) throws InterruptedException {
+        RobotLogCommon.d(TAG, "In ColorChannelRecognition.splitColorChannels");
 
         // LocalDateTime requires Android minSdkVersion 26  public Pair<Mat, LocalDateTime> getImage() throws InterruptedException;
         Pair<Mat, LocalDateTime> inputImage = pImageProvider.getImage();
@@ -41,13 +41,19 @@ public class HSVChannelRecognition {
         String fileDate = TimeStamp.getLocalDateTimeStamp(inputImage.second);
         String outputFilenamePreamble = ImageUtils.createOutputFilePreamble(pImageParameters.image_source, testCaseDirectory, fileDate);
         Mat imageROI = ImageUtils.preProcessImage(inputImage.first, outputFilenamePreamble, pImageParameters);
+
         Mat hsvROI = new Mat();
         Imgproc.cvtColor(imageROI, hsvROI, Imgproc.COLOR_BGR2HSV);
+        performHSVSplit(hsvROI, outputFilenamePreamble);
 
-        return performHSVSplit(hsvROI, outputFilenamePreamble);
+        Mat labROI = new Mat();
+        Imgproc.cvtColor(imageROI, labROI, Imgproc.COLOR_BGR2Lab);
+        performLABSplit(labROI, outputFilenamePreamble);
+
+        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
-    private RobotConstants.RecognitionResults performHSVSplit(Mat pHSVROI, String pOutputFilenamePreamble) {
+    private void performHSVSplit(Mat pHSVROI, String pOutputFilenamePreamble) {
         Mat hueChannel = new Mat();
         Core.extractChannel(pHSVROI, hueChannel, 0);
 
@@ -71,8 +77,32 @@ public class HSVChannelRecognition {
         String valFilename = pOutputFilenamePreamble + "_VAL.png";
         Imgcodecs.imwrite(valFilename, valueChannel);
         RobotLogCommon.d(TAG, "Writing " + valFilename);
+    }
 
-        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+    private void performLABSplit(Mat pLABROI, String pOutputFilenamePreamble) {
+        Mat lChannel = new Mat();
+        Core.extractChannel(pLABROI, lChannel, 0);
+
+        // Write out the L channel as grayscale.
+        String lFilename = pOutputFilenamePreamble + "_L.png";
+        Imgcodecs.imwrite(lFilename, lChannel);
+        RobotLogCommon.d(TAG, "Writing " + lFilename);
+
+        Mat aChannel = new Mat();
+        Core.extractChannel(pLABROI, aChannel, 1);
+
+        // Write out the A channel as grayscale.
+        String aFilename = pOutputFilenamePreamble + "_A.png";
+        Imgcodecs.imwrite(aFilename, aChannel);
+        RobotLogCommon.d(TAG, "Writing " + aFilename);
+
+        Mat bChannel = new Mat();
+        Core.extractChannel(pLABROI, bChannel, 2);
+
+        // Write out the V channel as grayscale.
+        String bFilename = pOutputFilenamePreamble + "_B.png";
+        Imgcodecs.imwrite(bFilename, bChannel);
+        RobotLogCommon.d(TAG, "Writing " + bFilename);
     }
 
 }
