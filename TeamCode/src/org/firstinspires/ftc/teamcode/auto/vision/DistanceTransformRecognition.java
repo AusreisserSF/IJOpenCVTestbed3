@@ -14,6 +14,8 @@ import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
 
+//**TODO This is not a general-purpose distance transform. It is
+// specific to CenterStage.
 public class DistanceTransformRecognition {
 
     private static final String TAG = DistanceTransformRecognition.class.getSimpleName();

@@ -161,6 +161,39 @@ public class RecognitionDispatcher extends Application {
                         "Test gold cube recognition");
             }
 
+            // Proof-of-concept test with the L*a*b* color space.
+            case "LAB" -> {
+                // Get the <image_parameters> for the L*a*b* test from the RobotAction XML file.
+                VisionParameters.ImageParameters labImageParameters =
+                        robotActionXML.getImageParametersFromXPath(actionElement, "image_parameters");
+
+                // Make sure that this tester is reading the image from a file.
+                if (!(labImageParameters.image_source.endsWith(".png") ||
+                        labImageParameters.image_source.endsWith(".jpg")))
+                    throw new AutonomousRobotException(TAG, "Invalid image file name");
+
+                imageFilename = labImageParameters.image_source;
+                ImageProvider fileImage = new FileImage(fullTestCaseDir + labImageParameters.image_source);
+
+                // Perform image recognition.
+                // Get the recognition path from the XML file.
+                String recognitionPathString = actionXPath.getRequiredText("lab_recognition/recognition_path");
+                LABRecognition.LABRecognitionPath labRecognitionPath =
+                        LABRecognition.LABRecognitionPath.valueOf(recognitionPathString.toUpperCase());
+
+                RobotLogCommon.d(TAG, "Recognition path " + labRecognitionPath);
+
+                // Perform image recognition.
+                LABRecognition labRecognition = new LABRecognition(fullTestCaseDir);
+                RobotConstants.RecognitionResults labReturn =
+                        labRecognition.testLAB(fileImage, labImageParameters, labRecognitionPath);
+
+                displayResults(fullTestCaseDir + imageFilename,
+                        buildResultsOnlyDisplayText(imageFilename, labReturn),
+                        "Test OpenCV L*a*b* thresholding");
+            }
+
+
             // Standard OpenCV Watershed example from --
             // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html
             case "WATERSHED_STD" -> {
