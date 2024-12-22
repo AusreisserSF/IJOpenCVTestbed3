@@ -62,7 +62,17 @@ public class LABRecognition {
         Imgcodecs.imwrite(outputFilenamePreamble + "_B_CHANNEL.png", selectedChannel);
         RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_B_CHANNEL.png");
 
-        //**TODO Mat thresholded = ImageUtils.performThresholdOnGray(selectedChannel, pOutputFilenamePreamble, pGoldCubeParameters.grayscaleParameters.median_target, pGoldCubeParameters.grayscaleParameters.threshold_low);
+        // Full-on LAB color recognition on red.
+        //!! Adjust the LAB values.
+        // From https://docs.opencv.org/3.4/de/d25/imgproc_color_conversions.html
+        //    8-bit images: L←L∗255/100,a←a+128,b←b+128
+        // Low L 25.0 -> 63.75; a* 50.0 -> 178; b* 25.0 -> 153
+        // High L 50.0 -> 127.5; a* 75.0 -> 203; b* 60.0 -> 188
+             Mat thresholded = new Mat();
+             Core.inRange(labImage, new Scalar(63.75, 178, 153), new Scalar(127.5, 203, 188), thresholded);
+
+            Imgcodecs.imwrite(outputFilenamePreamble + "_THR.png", thresholded);
+            RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_THR.png");
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
