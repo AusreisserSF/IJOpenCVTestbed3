@@ -49,7 +49,7 @@ public class ImageXML {
         if ((image_source_node == null) || !image_source_node.getNodeName().equals("image_source") || image_source_node.getTextContent().isEmpty())
             throw new AutonomousRobotException(TAG, "Element 'image_source' not found");
 
-       image_source = image_source_node.getTextContent();
+        image_source = image_source_node.getTextContent();
 
 	    /*
 	    <resolution>
@@ -213,7 +213,7 @@ public class ImageXML {
         int value_threshold_low;
 
         //RobotLogCommon.d(TAG, "Parsing XML hsv_parameters");
-        
+
         if ((pHSVNode == null) || !pHSVNode.getNodeName().equals("hsv_parameters"))
             throw new AutonomousRobotException(TAG, "Missing required <hsv_parameters> element");
 
@@ -296,5 +296,94 @@ public class ImageXML {
                 saturation_median_target, saturation_threshold_low,
                 value_median_target, value_threshold_low);
     }
-    
+
+    // Parse the children of the <lab_parameters> element in the XML file.
+    /*
+    <lab_parameters>
+      <l_star_low>25.0</l_star_low>
+      <l_star_high>127.5</l_star_high>
+      <a_star_low>178.0</a_star_low>
+      <a_star_high>203.0</a_star_high>
+      <b_star_low>153.0</b_star_low>
+      <b_star_high>188.0</b_star_high>
+    </lab_parameters>
+    */
+    // At this point pLABNode points to the <hsv_parameters> element.
+    public static VisionParameters.LABParameters parseLABParameters(Node pLABNode) {
+        double L_star_low;
+        double L_star_high;
+        double a_star_low;
+        double a_star_high;
+        double b_star_low;
+        double b_star_high;
+
+        //RobotLogCommon.d(TAG, "Parsing XML lab_parameters");
+
+        if ((pLABNode == null) || !pLABNode.getNodeName().equals("lab_parameters"))
+            throw new AutonomousRobotException(TAG, "Missing required <lab_parameters> element");
+
+        Node l_low_node = pLABNode.getFirstChild();
+        l_low_node = XMLUtils.getNextElement(l_low_node);
+        if ((l_low_node == null) || !l_low_node.getNodeName().equals("L_star_low") || l_low_node.getTextContent().isEmpty())
+            throw new AutonomousRobotException(TAG, "Element 'L_star_low' missing or empty");
+
+        try {
+            L_star_low = Double.parseDouble(l_low_node.getTextContent());
+        } catch (NumberFormatException nex) {
+            throw new AutonomousRobotException(TAG, "Invalid number format in element 'L_star_low'");
+        }
+
+        Node l_high_node = l_low_node.getNextSibling();
+        l_high_node = XMLUtils.getNextElement(l_high_node);
+        if ((l_high_node == null) || !l_high_node.getNodeName().equals("L_star_high") || l_high_node.getTextContent().isEmpty())
+            throw new AutonomousRobotException(TAG, "Element 'L_star_high' missing or empty");
+        try {
+            L_star_high = Double.parseDouble(l_high_node.getTextContent());
+        } catch (NumberFormatException nex) {
+            throw new AutonomousRobotException(TAG, "Invalid number format in element 'L_star_high'");
+        }
+
+        Node a_low_node = l_high_node.getNextSibling();
+        a_low_node = XMLUtils.getNextElement(a_low_node);
+        if ((a_low_node == null) || !a_low_node.getNodeName().equals("a_star_low") || a_low_node.getTextContent().isEmpty())
+            throw new AutonomousRobotException(TAG, "Element 'a_star_low' missing or empty");
+        try {
+            a_star_low = Double.parseDouble(a_low_node.getTextContent());
+        } catch (NumberFormatException nex) {
+            throw new AutonomousRobotException(TAG, "Invalid number format in element 'a_star_low'");
+        }
+
+        Node a_high_node = a_low_node.getNextSibling();
+        a_high_node = XMLUtils.getNextElement(a_high_node);
+        if ((a_high_node == null) || !a_high_node.getNodeName().equals("a_star_high") || a_high_node.getTextContent().isEmpty())
+            throw new AutonomousRobotException(TAG, "Element 'a_star_high' missing or empty");
+        try {
+            a_star_high = Double.parseDouble(a_high_node.getTextContent());
+        } catch (NumberFormatException nex) {
+            throw new AutonomousRobotException(TAG, "Invalid number format in element 'a_star_high'");
+        }
+
+        Node b_low_node = a_high_node.getNextSibling();
+        b_low_node = XMLUtils.getNextElement(b_low_node);
+        if ((b_low_node == null) || !b_low_node.getNodeName().equals("b_star_low") || b_low_node.getTextContent().isEmpty())
+            throw new AutonomousRobotException(TAG, "Element 'b_star_low' missing or empty");
+        try {
+            b_star_low = Double.parseDouble(b_low_node.getTextContent());
+        } catch (NumberFormatException nex) {
+            throw new AutonomousRobotException(TAG, "Invalid number format in element 'b_star_low'");
+        }
+
+        Node b_high_node = b_low_node.getNextSibling();
+        b_high_node = XMLUtils.getNextElement(b_high_node);
+        if ((b_high_node == null) || !b_high_node.getNodeName().equals("b_star_high") || b_high_node.getTextContent().isEmpty())
+            throw new AutonomousRobotException(TAG, "Element 'b_star_high' missing or empty");
+        try {
+            b_star_high = Double.parseDouble(b_high_node.getTextContent());
+        } catch (NumberFormatException nex) {
+            throw new AutonomousRobotException(TAG, "Invalid number format in element 'b_star_high'");
+        }
+
+        return new VisionParameters.LABParameters(L_star_low, L_star_high,
+                a_star_low, a_star_high, b_star_low, b_star_high);
+    }
 }

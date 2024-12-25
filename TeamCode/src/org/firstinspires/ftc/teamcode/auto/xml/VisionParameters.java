@@ -60,4 +60,25 @@ public class VisionParameters {
         }
     }
 
+    // From the lab_parameters element of any XML file.
+    public static class LABParameters {
+        public final double L_star_low;
+        public final double L_star_high;
+        public final double a_star_low;
+        public final double a_star_high;
+        public final double b_star_low;
+        public final double b_star_high;
+
+        public LABParameters(double pLStarLow, double pLStarHigh,
+                             double pAStarLow, double pAStarHigh,
+                             double pBStarLow, double pBStarHigh) {
+            L_star_low = pLStarLow;
+            L_star_high = pLStarHigh;
+            a_star_low = pAStarLow;
+            a_star_high = pAStarHigh;
+            b_star_low = pBStarLow;
+            b_star_high = pBStarHigh;
+        }
+    }
+
 }
