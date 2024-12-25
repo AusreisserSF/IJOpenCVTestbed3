@@ -46,7 +46,7 @@ public class LABTesterParametersXML {
         }
     }
 
-    public LABTesterParameters getGoldCubeParameters() throws XPathExpressionException {
+    public LABTesterParameters getLABTesterParameters() throws XPathExpressionException {
         XPathExpression expr;
         VisionParameters.GrayParameters grayParameters;
         VisionParameters.LABParameters labParameters;

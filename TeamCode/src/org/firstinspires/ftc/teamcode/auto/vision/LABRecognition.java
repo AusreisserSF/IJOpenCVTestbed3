@@ -6,6 +6,7 @@ import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.TimeStamp;
 import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 import org.firstinspires.ftc.teamcode.auto.xml.GoldCubeParameters;
+import org.firstinspires.ftc.teamcode.auto.xml.LABTesterParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
@@ -19,7 +20,7 @@ public class LABRecognition {
     private static final String TAG = LABRecognition.class.getSimpleName();
 
     public enum LABRecognitionPath {
-        LAB
+        A_CHANNEL_GRAYSCALE, B_CHANNEL_GRAYSCALE, LAB_COLOR
     }
 
     private final String testCaseDirectory;
@@ -30,6 +31,7 @@ public class LABRecognition {
 
     public RobotConstants.RecognitionResults testLAB(ImageProvider pImageProvider,
                                                      VisionParameters.ImageParameters pImageParameters,
+                                                     LABTesterParameters pLABTesterParameters,
                                                      LABRecognition.LABRecognitionPath pLABRecognitionPath) throws InterruptedException {
 
         RobotLogCommon.d(TAG, "In LABRecognition.testLAB");
@@ -46,6 +48,8 @@ public class LABRecognition {
         String fileDate = TimeStamp.getLocalDateTimeStamp(originalImage.second);
         String outputFilenamePreamble = ImageUtils.createOutputFilePreamble(pImageParameters.image_source, testCaseDirectory, fileDate);
         Mat imageROI = ImageUtils.preProcessImage(labImage, outputFilenamePreamble, pImageParameters);
+
+        //**TODO Switch on A_CHANNEL_GRAYSCALE, B_CHANNEL_GRAYSCALE, LAB_COLOR
 
         // Extract the "a" and then use it as grayscale.
         Mat selectedChannel = new Mat();

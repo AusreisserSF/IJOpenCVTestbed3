@@ -163,6 +163,10 @@ public class RecognitionDispatcher extends Application {
 
             // Proof-of-concept test with the L*a*b* color space.
             case "LAB" -> {
+                // Read the parameters for gold cube recognition from the xml file.
+                LABTesterParametersXML labTesterParametersXML = new LABTesterParametersXML(fullTestCaseDir);
+                LABTesterParameters labTesterParameters = labTesterParametersXML.getLABTesterParameters();
+
                 // Get the <image_parameters> for the L*a*b* test from the RobotAction XML file.
                 VisionParameters.ImageParameters labImageParameters =
                         robotActionXML.getImageParametersFromXPath(actionElement, "image_parameters");
@@ -186,13 +190,12 @@ public class RecognitionDispatcher extends Application {
                 // Perform image recognition.
                 LABRecognition labRecognition = new LABRecognition(fullTestCaseDir);
                 RobotConstants.RecognitionResults labReturn =
-                        labRecognition.testLAB(fileImage, labImageParameters, labRecognitionPath);
+                        labRecognition.testLAB(fileImage, labImageParameters, labTesterParameters, labRecognitionPath);
 
                 displayResults(fullTestCaseDir + imageFilename,
                         buildResultsOnlyDisplayText(imageFilename, labReturn),
                         "Test OpenCV L*a*b* thresholding");
             }
-
 
             // Standard OpenCV Watershed example from --
             // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html
