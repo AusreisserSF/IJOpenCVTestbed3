@@ -5,15 +5,15 @@ import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.TimeStamp;
 import org.firstinspires.ftc.teamcode.auto.RobotConstants;
-import org.firstinspires.ftc.teamcode.auto.xml.GoldCubeParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.LABTesterParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
-import org.opencv.core.*;
+import org.opencv.core.Core;
+import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 
 public class LABRecognition {
 
@@ -50,35 +50,55 @@ public class LABRecognition {
         Mat imageROI = ImageUtils.preProcessImage(labImage, outputFilenamePreamble, pImageParameters);
 
         //**TODO Switch on A_CHANNEL_GRAYSCALE, B_CHANNEL_GRAYSCALE, LAB_COLOR
-
-        // Extract the "a" and then use it as grayscale.
-        Mat selectedChannel = new Mat();
-        Core.extractChannel(imageROI, selectedChannel, 1);
-
-        // Write out the "a" channel as grayscale.
-        Imgcodecs.imwrite(outputFilenamePreamble + "_A_CHANNEL.png", selectedChannel);
-        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_A_CHANNEL.png");
-
-        // The "b" channel.
-        Core.extractChannel(imageROI, selectedChannel, 2); // "b" channel
-
-        // Write out the "a" channel as grayscale.
-        Imgcodecs.imwrite(outputFilenamePreamble + "_B_CHANNEL.png", selectedChannel);
-        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_B_CHANNEL.png");
-
-        // Full-on LAB color recognition on red.
-        //!! Adjust the LAB values.
-        // From https://docs.opencv.org/3.4/de/d25/imgproc_color_conversions.html
-        //    8-bit images: L←L∗255/100,a←a+128,b←b+128
-        // Low L 25.0 -> 63.75; a* 50.0 -> 178; b* 25.0 -> 153
-        // High L 50.0 -> 127.5; a* 75.0 -> 203; b* 60.0 -> 188
-             Mat thresholded = new Mat();
-             Core.inRange(labImage, new Scalar(63.75, 178, 153), new Scalar(127.5, 203, 188), thresholded);
-
-            Imgcodecs.imwrite(outputFilenamePreamble + "_THR.png", thresholded);
-            RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_THR.png");
+        switch (pLABRecognitionPath) {
+            case LAB_COLOR -> {
+                return labColor(imageROI, pLABTesterParameters, outputFilenamePreamble);
+            }
+            case A_CHANNEL_GRAYSCALE -> {
+                //**TODO
+            }
+            case B_CHANNEL_GRAYSCALE -> {
+                //**TODO
+            }
+            default -> throw new AutonomousRobotException(TAG, "Unrecognized LAB path " + pLABRecognitionPath);
+        }
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
+
+
+    private RobotConstants.RecognitionResults labColor(Mat pImageROI, LABTesterParameters pLABTesterParameters,
+                                                       String outputFilenamePreamble) {
+
+        // The original L*a*b* values have already been converted to
+        // their OpenCV equivalents.
+        Mat thresholded = new Mat();
+        Core.inRange(pImageROI, new Scalar(pLABTesterParameters.labParameters.L_star_low,
+                        pLABTesterParameters.labParameters.a_star_low,
+                        pLABTesterParameters.labParameters.b_star_low),
+                new Scalar(pLABTesterParameters.labParameters.L_star_high,
+                        pLABTesterParameters.labParameters.a_star_high,
+                        pLABTesterParameters.labParameters.b_star_high),
+                thresholded);
+
+        Imgcodecs.imwrite(outputFilenamePreamble + "_THR.png", thresholded);
+        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_THR.png");
+        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
+    }
+
+//        // Extract the "a" and then use it as grayscale.
+//        Mat selectedChannel = new Mat();
+//        Core.extractChannel(imageROI, selectedChannel, 1);
+//
+//        // Write out the "a" channel as grayscale.
+//        Imgcodecs.imwrite(outputFilenamePreamble + "_A_CHANNEL.png", selectedChannel);
+//        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_A_CHANNEL.png");
+//
+//        // The "b" channel.
+//        Core.extractChannel(imageROI, selectedChannel, 2); // "b" channel
+//
+//        // Write out the "a" channel as grayscale.
+//        Imgcodecs.imwrite(outputFilenamePreamble + "_B_CHANNEL.png", selectedChannel);
+//        RobotLogCommon.d(TAG, "Writing " + outputFilenamePreamble + "_B_CHANNEL.png");
 
 }

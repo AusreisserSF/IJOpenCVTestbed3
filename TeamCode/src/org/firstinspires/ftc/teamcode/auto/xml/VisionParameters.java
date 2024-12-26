@@ -69,15 +69,20 @@ public class VisionParameters {
         public final double b_star_low;
         public final double b_star_high;
 
+        //!! Adjust the L*a*b* values for OpenCV.
+        // From https://docs.opencv.org/3.4/de/d25/imgproc_color_conversions.html
+        //    8-bit images: L←L∗255/100,a←a+128,b←b+128
+        // Low L 25.0 -> 63.75; a* 50.0 -> 178; b* 25.0 -> 153
+        // High L 50.0 -> 127.5; a* 75.0 -> 203; b* 60.0 -> 188
         public LABParameters(double pLStarLow, double pLStarHigh,
                              double pAStarLow, double pAStarHigh,
                              double pBStarLow, double pBStarHigh) {
-            L_star_low = pLStarLow;
-            L_star_high = pLStarHigh;
-            a_star_low = pAStarLow;
-            a_star_high = pAStarHigh;
-            b_star_low = pBStarLow;
-            b_star_high = pBStarHigh;
+            L_star_low = (pLStarLow * 255) / 100;
+            L_star_high = (pLStarHigh * 255) / 100;
+            a_star_low = pAStarLow + 128;
+            a_star_high = pAStarHigh + 128;
+            b_star_low = pBStarLow + 128;
+            b_star_high = pBStarHigh + 128;
         }
     }
 
