@@ -73,7 +73,7 @@ public class ImageUtils {
                         pImageParameters.image_roi.width,
                         pImageParameters.image_roi.height));
 
-        if (pPreamble != null) {
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
             String imageFilename = pPreamble + "_ROI.png";
             RobotLogCommon.d(TAG, "Writing image ROI " + imageFilename);
             Imgcodecs.imwrite(imageFilename, imageROI);
@@ -107,9 +107,11 @@ public class ImageUtils {
         Mat sharpMat = new Mat();
         Imgproc.filter2D(pDullMat, sharpMat, -1, kernel);
 
-        String sharpFilename = pOutputFilenamePreamble + "_SHARP.png";
-        RobotLogCommon.d(TAG, "Writing " + sharpFilename);
-        Imgcodecs.imwrite(sharpFilename, sharpMat);
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
+            String sharpFilename = pOutputFilenamePreamble + "_SHARP.png";
+            RobotLogCommon.d(TAG, "Writing " + sharpFilename);
+            Imgcodecs.imwrite(sharpFilename, sharpMat);
+        }
 
         return sharpMat;
     }
@@ -270,19 +272,19 @@ public class ImageUtils {
         Mat adjusted = adjustSaturationAndValueMedians(hsvROI, pHSVParameters.saturation_median_target, pHSVParameters.value_median_target);
 
         // Convert back to BGR.
-        if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable("v")) {
+        if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             Mat adjustedBGR = new Mat();
             Imgproc.cvtColor(adjusted, adjustedBGR, Imgproc.COLOR_HSV2BGR);
             Imgcodecs.imwrite(pOutputFilenamePreamble + "_ADJ" + pFilenameSuffix + ".png", adjustedBGR);
-            RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_ADJ" + pFilenameSuffix + ".png");
+            RobotLogCommon.vv(TAG, "Writing " + pOutputFilenamePreamble + "_ADJ" + pFilenameSuffix + ".png");
         }
 
         Mat thresholded = applyInRange(adjusted, pHSVParameters.hue_low, pHSVParameters.hue_high,
                 pHSVParameters.saturation_threshold_low, pHSVParameters.value_threshold_low);
 
-        if (pOutputFilenamePreamble != null) {
+        if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
             Imgcodecs.imwrite(pOutputFilenamePreamble + "_ADJ_THR" + pFilenameSuffix + ".png", thresholded);
-            RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_ADJ_THR" + pFilenameSuffix + ".png");
+            RobotLogCommon.v(TAG, "Writing " + pOutputFilenamePreamble + "_ADJ_THR" + pFilenameSuffix + ".png");
         }
 
         return thresholded;
@@ -352,36 +354,60 @@ public class ImageUtils {
                 (pHue >= 0 && pHue <= pTargetHigh);
     }
 
+    public static Mat simpleAdjustAndThreshold(Mat pGrayInputROI, int pGrayscaleMedianTarget, int pLowThreshold,
+                                               String pOutputFilenamePreamble, String pOutputFilenameSuffix) {
+        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(pGrayInputROI, pGrayscaleMedianTarget);
+
+        if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
+            Imgcodecs.imwrite(pOutputFilenamePreamble + "_ADJ" + pOutputFilenameSuffix + ".png", adjustedGray);
+            RobotLogCommon.vv(TAG, "Writing adjusted grayscale image " + pOutputFilenamePreamble + "_ADJ" + pOutputFilenameSuffix + ".png");
+        }
+
+        Mat thresholded = new Mat(); // output binary image
+        Imgproc.threshold(adjustedGray, thresholded,
+                Math.abs(pLowThreshold),
+                255,   // white
+                Imgproc.THRESH_BINARY);
+
+        if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
+            Imgcodecs.imwrite(pOutputFilenamePreamble + "_ADJ_THR" + pOutputFilenameSuffix + ".png", thresholded);
+            RobotLogCommon.v(TAG, "Writing " + pOutputFilenamePreamble + "_ADJ_THR" + pOutputFilenameSuffix + ".png");
+        }
+
+        return thresholded;
+    }
+
     // Common path for converting an OpenCV BGR image to grayscale,
     // adjusting the grayscale image to a target, performing
     // morphological opening, blurring the image, and thresholding it.
-    public static Mat convertToGrayAndThreshold(Mat pBGRInputROI, String pOutputFilenamePreamble,
-                                                int pGrayscaleMedianTarget, int pLowThreshold) {
+    public static Mat convertToGrayAndThreshold(Mat pBGRInputROI, int pGrayscaleMedianTarget, int pLowThreshold,
+                                                String pOutputFilenamePreamble, String pOutputFilenameSuffix) {
         // We're on the grayscale path.
         Mat grayROI = new Mat();
         Imgproc.cvtColor(pBGRInputROI, grayROI, Imgproc.COLOR_BGR2GRAY);
 
-        if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable("v")) {
-            Imgcodecs.imwrite(pOutputFilenamePreamble + "_GRAY.png", grayROI);
-            RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_GRAY.png");
+        if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
+            Imgcodecs.imwrite(pOutputFilenamePreamble + "_GRAY" + pOutputFilenameSuffix + ".png", grayROI);
+            RobotLogCommon.vv(TAG, "Writing " + pOutputFilenamePreamble + "_GRAY" + pOutputFilenameSuffix + ".png");
         }
 
-        return performThresholdOnGray(grayROI, pOutputFilenamePreamble, pGrayscaleMedianTarget, pLowThreshold);
+        return performThresholdOnGray(grayROI, pGrayscaleMedianTarget, pLowThreshold,
+                pOutputFilenamePreamble, pOutputFilenameSuffix);
     }
 
-    public static Mat performThresholdOnGray(Mat pGrayInputROI, String pOutputFilenamePreamble,
-                                             int pGrayscaleMedianTarget, int pLowThreshold) {
+    public static Mat performThresholdOnGray(Mat pGrayInputROI, int pGrayscaleMedianTarget, int pLowThreshold,
+                                             String pOutputFilenamePreamble, String pOutputFilenameSuffix) {
         Mat adjustedGray = adjustGrayscaleMedian(pGrayInputROI, pGrayscaleMedianTarget);
-        if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable("v")) {
-            Imgcodecs.imwrite(pOutputFilenamePreamble + "_ADJ.png", adjustedGray);
-            RobotLogCommon.d(TAG, "Writing adjusted grayscale image " + pOutputFilenamePreamble + "_ADJ.png");
+        if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
+            Imgcodecs.imwrite(pOutputFilenamePreamble + "_ADJ" + pOutputFilenameSuffix + ".png", adjustedGray);
+            RobotLogCommon.d(TAG, "Writing adjusted grayscale image " + pOutputFilenamePreamble + "_ADJ" + pOutputFilenameSuffix + ".png");
         }
 
         Mat thresholded = applyGrayThreshold(adjustedGray, pLowThreshold);
 
         if (pOutputFilenamePreamble != null) {
-            Imgcodecs.imwrite(pOutputFilenamePreamble + "_ADJ_THR.png", thresholded);
-            RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_ADJ_THR.png");
+            Imgcodecs.imwrite(pOutputFilenamePreamble + "_ADJ_THR" + pOutputFilenameSuffix + ".png", thresholded);
+            RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_ADJ_THR" + pOutputFilenameSuffix + ".png");
         }
 
         return thresholded;
@@ -414,8 +440,9 @@ public class ImageUtils {
     }
 
     //**TODO Propagate changes to all IJ and AS projects ...
-    // IJThresholdTester DONE 8/16/2024.
-    // Get the median of any single-channel Mat.
+    //**TODO Redo IJThresholdTester, which was previously reconciled on 8/16/2024.
+    //**TODO Check Get the median of any single-channel Mat.
+    // 1/4/2025 Reconciled with IJIntoTheDeepVision
     public static int getSingleChannelMedian(Mat pSingleChannelMat) {
         if ((pSingleChannelMat.dims() != 2) || (!pSingleChannelMat.isContinuous()))
             throw new AutonomousRobotException(TAG, "Expected a single-channel Mat");
@@ -467,7 +494,7 @@ public class ImageUtils {
 
         // Within the ROI draw all of the contours.
         RobotLogCommon.d(TAG, "Number of contours " + contours.size());
-        if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable("v")) {
+        if (pOutputFilenamePreamble != null && RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
             Mat contoursDrawn = pImageROI.clone();
             ShapeDrawing.drawShapeContours(contours, contoursDrawn);
             Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON.png", contoursDrawn);

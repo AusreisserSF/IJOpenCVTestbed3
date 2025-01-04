@@ -73,7 +73,7 @@ public class RobotActionXML {
     // Find the requested opMode in the RobotAction.xml file.
     // Package and return all data associated with the OpMode.
     public RobotActionData getOpModeData(String pOpMode) throws XPathExpressionException {
-        Level logLevel = null; // null means use the default lowest logging level
+        RobotLogCommon.CommonLogLevel logLevel = null; // null means use the default lowest logging level
         StartingPositionData startingPositionData = null;
         List<RobotXMLElement> actionElements = new ArrayList<>();
 
@@ -101,25 +101,7 @@ public class RobotActionXML {
         Node nextParameterNode = XMLUtils.getNextElement(parametersNode.getFirstChild());
         if ((nextParameterNode != null) && (nextParameterNode.getNodeName().equals("log_level"))) {
             String logLevelString = nextParameterNode.getTextContent().trim();
-            if (!logLevelString.isEmpty()) {
-                switch (logLevelString) {
-                    case "d": {
-                        logLevel = Level.FINE;
-                        break;
-                    }
-                    case "v": {
-                        logLevel = Level.FINER;
-                        break;
-                    }
-                    case "vv": {
-                        logLevel = Level.FINEST;
-                        break;
-                    }
-                    default: {
-                        throw new AutonomousRobotException(TAG, "Invalid logging level");
-                    }
-                }
-            }
+            logLevel = RobotLogCommon.CommonLogLevel.valueOf(logLevelString);
             nextParameterNode = XMLUtils.getNextElement(nextParameterNode.getNextSibling());
         }
 
@@ -207,11 +189,11 @@ public class RobotActionXML {
     }
 
     public static class RobotActionData {
-        public final Level logLevel;
+        public final RobotLogCommon.CommonLogLevel logLevel;
         public final StartingPositionData startingPositionData;
         public final List<RobotXMLElement> actionElements;
 
-        public RobotActionData(Level pLogLevel,
+        public RobotActionData(RobotLogCommon.CommonLogLevel pLogLevel,
                                StartingPositionData pStartingPositionData,
                                List<RobotXMLElement> pActionElements) {
             logLevel = pLogLevel;

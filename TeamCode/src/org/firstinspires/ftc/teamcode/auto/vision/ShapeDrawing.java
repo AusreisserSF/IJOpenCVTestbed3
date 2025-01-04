@@ -48,7 +48,7 @@ public class ShapeDrawing {
         Imgproc.line(pImageROI, xUpperLeft, xLowerRight, pBGRColor, drawnXThickness);
         Imgproc.line(pImageROI, xLowerLeft, xUpperRight, pBGRColor, drawnXThickness);
 
-        if (RobotLogCommon.isLoggable("v")) {
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
             Imgcodecs.imwrite(pOutputFilenamePreamble + "NO_BRECT.png", pImageROI);
             RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "NO_BRECT.png");
         }

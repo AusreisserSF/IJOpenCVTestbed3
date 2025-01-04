@@ -78,7 +78,10 @@ public class GoldCubeRecognition {
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_CHANNEL.png", selectedChannel);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_CHANNEL.png");
 
-        Mat thresholded = ImageUtils.performThresholdOnGray(selectedChannel, pOutputFilenamePreamble, pGoldCubeParameters.grayscaleParameters.median_target, pGoldCubeParameters.grayscaleParameters.threshold_low);
+        Mat thresholded = ImageUtils.performThresholdOnGray(selectedChannel,
+                pGoldCubeParameters.grayscaleParameters.median_target,
+                pGoldCubeParameters.grayscaleParameters.threshold_low,
+                pOutputFilenamePreamble, "");
 
         Optional<Pair<Integer, MatOfPoint>> targetContour = ImageUtils.getLargestContour(pImageROI, thresholded, pOutputFilenamePreamble);
         if (!targetContour.isPresent()) {
@@ -102,7 +105,7 @@ public class GoldCubeRecognition {
             return RobotConstants.RecognitionResults.RECOGNITION_UNSUCCESSFUL; // don't crash
         }
 
-        if (RobotLogCommon.isLoggable("v")) {
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
             Imgcodecs.imwrite(pOutputFilenamePreamble + "_BRECT.png", drawnRectangle);
             RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BRECT.png");
         }
@@ -143,7 +146,7 @@ public class GoldCubeRecognition {
             return RobotConstants.RecognitionResults.RECOGNITION_UNSUCCESSFUL; // don't crash
         }
 
-        if (RobotLogCommon.isLoggable("v")) {
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
             Imgcodecs.imwrite(pOutputFilenamePreamble + "_BRECT.png", drawnRectangle);
             RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BRECT.png");
         }

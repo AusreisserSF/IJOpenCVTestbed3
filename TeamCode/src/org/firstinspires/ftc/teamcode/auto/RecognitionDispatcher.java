@@ -197,10 +197,8 @@ public class RecognitionDispatcher extends Application {
                         "Test OpenCV L*a*b* thresholding");
             }
 
-            // Standard OpenCV Watershed example from --
-            // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html
-            case "WATERSHED_STD" -> {
-                // Get the <image_parameters> for the playing cards from the RobotAction XML file.
+            case "WATERSHED" -> {
+                // Get the <image_parameters> for the playing cards or coins from the RobotAction XML file.
                 VisionParameters.ImageParameters watershedImageParameters =
                         robotActionXML.getImageParametersFromXPath(actionElement, "image_parameters");
 
@@ -215,54 +213,19 @@ public class RecognitionDispatcher extends Application {
                 // Perform image recognition.
                 // Get the recognition path from the XML file.
                 String recognitionPathString = actionXPath.getRequiredText("watershed_recognition/recognition_path");
-                WatershedRecognitionStd.WatershedRecognitionPath watershedRecognitionPath =
-                        WatershedRecognitionStd.WatershedRecognitionPath.valueOf(recognitionPathString.toUpperCase());
+                WatershedRecognition.WatershedRecognitionPath watershedRecognitionPath =
+                        WatershedRecognition.WatershedRecognitionPath.valueOf(recognitionPathString.toUpperCase());
 
                 RobotLogCommon.d(TAG, "Recognition path " + watershedRecognitionPath);
 
                 // Perform image recognition.
-                WatershedRecognitionStd watershedRecognitionStd = new WatershedRecognitionStd(fullTestCaseDir);
+                WatershedRecognition watershedRecognition = new WatershedRecognition(fullTestCaseDir);
                 RobotConstants.RecognitionResults watershedStdReturn =
-                        watershedRecognitionStd.performWatershedStd(fileImage, watershedImageParameters, watershedRecognitionPath);
+                        watershedRecognition.performWatershed(fileImage, watershedImageParameters, watershedRecognitionPath);
 
                 displayResults(fullTestCaseDir + imageFilename,
                         buildResultsOnlyDisplayText(imageFilename, watershedStdReturn),
-                        "Test standard OpenCV Watershed");
-            }
-
-            case "WATERSHED_FTC" -> {
-                WatershedParametersFtcXML watershedParametersFtcXML = new WatershedParametersFtcXML(fullTestCaseDir);
-                WatershedParametersFtc watershedParametersFtc = watershedParametersFtcXML.getWatershedParameters();
-
-                // Get the <image_parameters> from the RobotAction XML file.
-                VisionParameters.ImageParameters watershedImageParameters =
-                        robotActionXML.getImageParametersFromXPath(actionElement, "image_parameters");
-
-                // Make sure that this tester is reading the image from a file.
-                if (!(watershedImageParameters.image_source.endsWith(".png") ||
-                        watershedImageParameters.image_source.endsWith(".jpg")))
-                    throw new AutonomousRobotException(TAG, "Invalid image file name");
-
-                imageFilename = watershedImageParameters.image_source;
-                ImageProvider fileImage = new FileImage(fullTestCaseDir + watershedImageParameters.image_source);
-
-                // Perform image recognition.
-                // Get the recognition path from the XML file.
-                String recognitionPathString = actionXPath.getRequiredText("watershed_recognition/recognition_path");
-                WatershedRecognitionFtc.WatershedRecognitionPath watershedRecognitionPath =
-                        WatershedRecognitionFtc.WatershedRecognitionPath.valueOf(recognitionPathString.toUpperCase());
-
-                RobotLogCommon.d(TAG, "Recognition path " + watershedRecognitionPath);
-
-                // Perform image recognition.
-                WatershedRecognitionFtc watershedRecognitionFtc = new WatershedRecognitionFtc(alliance, fullTestCaseDir);
-                RobotConstants.RecognitionResults watershedFtcReturn =
-                        watershedRecognitionFtc.performWatershedFtc(fileImage, watershedImageParameters,
-                                watershedRecognitionPath, watershedParametersFtc);
-
-                displayResults(fullTestCaseDir + imageFilename,
-                        buildResultsOnlyDisplayText(imageFilename, watershedFtcReturn),
-                        "Test standard OpenCV Watershed");
+                        "Test OpenCV Watershed");
             }
 
             case "DISTANCE" -> {

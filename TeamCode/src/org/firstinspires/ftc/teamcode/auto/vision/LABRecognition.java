@@ -65,8 +65,7 @@ public class LABRecognition {
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
-
-
+    
     private RobotConstants.RecognitionResults labColor(Mat pImageROI, LABTesterParameters pLABTesterParameters,
                                                        String outputFilenamePreamble) {
 

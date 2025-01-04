@@ -4,24 +4,24 @@
             <log_level>v</log_level>
         </parameters>
         <actions>
-            <WATERSHED_STD>
+            <WATERSHED>
                 <image_parameters>
-                    <image_source>pyimagesearch_coins_01.png</image_source>
+                    <image_source>cards.png</image_source>
                     <resolution>
-                        <width>500</width>
-                        <height>348</height>
+                        <width>640</width>
+                        <height>480</height>
                     </resolution>
                     <image_roi>
                         <x>0</x>
                         <y>0</y>
-                        <width>500</width>
-                        <height>348</height>
+                        <width>640</width>
+                        <height>480</height>
                     </image_roi>
                 </image_parameters>
                 <watershed_recognition>
-                    <recognition_path>watershed_coins_hybrid</recognition_path>
+                    <recognition_path>watershed_cards_std</recognition_path>
                 </watershed_recognition>
-            </WATERSHED_STD>
+            </WATERSHED>
         </actions>
     </OpMode>
 </RobotAction>

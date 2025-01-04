@@ -15,18 +15,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-public class WatershedRecognitionStd {
+public class WatershedRecognition {
 
-    private static final String TAG = WatershedRecognitionStd.class.getSimpleName();
+    private static final String TAG = WatershedRecognition.class.getSimpleName();
 
     public enum WatershedRecognitionPath {
-        WATERSHED_CARDS_STD, WATERSHED_CARDS_HYBRID,
-        WATERSHED_COINS_HYBRID
+        WATERSHED_CARDS_STD,
+        WATERSHED_CARDS_HYBRID, WATERSHED_COINS_HYBRID
     }
 
     private final String testCaseDirectory;
 
-    public WatershedRecognitionStd(String pTestCaseDirectory) {
+    public WatershedRecognition(String pTestCaseDirectory) {
         testCaseDirectory = pTestCaseDirectory;
     }
 
@@ -35,7 +35,9 @@ public class WatershedRecognitionStd {
     // works with an image of coins.
 
     // Reproduce the standard Java example and also create a hybrid of
-    // both examples that works with cards.
+    // that works with both cards and coins. The hybrid includes parts
+    // of the two OpenCV examples as well as one from pyimagesearch
+    // that targets coins.
 
     //!! Note that the standard Java example misses the boundary between
     // the two cards at the center right; our hybrid method is much
@@ -48,11 +50,14 @@ public class WatershedRecognitionStd {
     // The OpenCV Python example is here --
     // https://docs.opencv.org/4.x/d3/db4/tutorial_py_watershed.html
     //
+    // The pyimagesearch example is here --
+    // https://pyimagesearch.com/2015/11/02/watershed-opencv/
+    //
     // Returns the result of image analysis.
-    public RobotConstants.RecognitionResults performWatershedStd(ImageProvider pImageProvider,
-                                                                 VisionParameters.ImageParameters pImageParameters,
-                                                                 WatershedRecognitionPath pWatershedRecognitionPath) throws InterruptedException {
-        RobotLogCommon.d(TAG, "In WatershedRecognitionStd.performWatershedStd");
+    public RobotConstants.RecognitionResults performWatershed(ImageProvider pImageProvider,
+                                                              VisionParameters.ImageParameters pImageParameters,
+                                                              WatershedRecognitionPath pWatershedRecognitionPath) throws InterruptedException {
+        RobotLogCommon.d(TAG, "In WatershedRecognition.performWatershed");
 
         // LocalDateTime requires Android minSdkVersion 26  public Pair<Mat, LocalDateTime> getImage() throws InterruptedException;
         Pair<Mat, LocalDateTime> watershedImage = pImageProvider.getImage();
@@ -80,11 +85,11 @@ public class WatershedRecognitionStd {
         }
     }
 
+    // Standard OpenCV Watershed example from --
+    // https://docs.opencv.org/4.x/d2/dbd/tutorial_distance_transform.html
+    // Adapt the standard Java example to our environment.
+    //!! Note that the example misses the card in the upper right.
     private RobotConstants.RecognitionResults watershedCardsStd(Mat pImageROI, String pOutputFilenamePreamble) {
-
-        // Adapt the standard Java example to our environment.
-        //!! Note that the example misses the card in the upper right.
-
         //! [black_bg]
         // Change the background from white to black, since that will help later to
         // extract better results during the use of Distance Transform
@@ -98,7 +103,8 @@ public class WatershedRecognitionStd {
         // upper-right.
         Mat imgResult = ImageUtils.sharpen(blk, pOutputFilenamePreamble);
 
-        //##PY The Laplacian filtering and the sharpening do make a difference.
+        //##PY The Laplacian filtering and the sharpening do make a difference
+        // but the results are fine with just sharpening.
         /*
         //! [sharp]
         // Create a kernel that we will use to sharpen our image
@@ -145,8 +151,9 @@ public class WatershedRecognitionStd {
         Imgproc.threshold(bw, bw, 40, 255, Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
 
         // Output the thresholded image.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_THR.png", bw);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_THR.png");
+        String thrFilename = pOutputFilenamePreamble + "_THR.png";
+        Imgcodecs.imwrite(thrFilename, bw);
+        RobotLogCommon.v(TAG, "Writing " + thrFilename);
         //! [bin]
 
         //! [dist]
@@ -163,8 +170,9 @@ public class WatershedRecognitionStd {
         distDisplayScaled.convertTo(distDisplay, CvType.CV_8U);
 
         // Output the transformed image.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_DIST.png", distDisplay);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
+        String distFilename = pOutputFilenamePreamble + "_DIST.png";
+        Imgcodecs.imwrite(distFilename, distDisplay);
+        RobotLogCommon.d(TAG, "Writing " + distFilename);
         //! [dist]
 
         //! [peaks]
@@ -180,8 +188,9 @@ public class WatershedRecognitionStd {
         Core.multiply(distDisplay2, new Scalar(255), distDisplay2);
 
         // Output the foreground peaks.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_PEAK.png", distDisplay2);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_PEAK.png");
+        String peakFilename = pOutputFilenamePreamble + "_PEAK.png";
+        Imgcodecs.imwrite(peakFilename, distDisplay2);
+        RobotLogCommon.d(TAG, "Writing " + peakFilename);
         //! [peaks]
 
         //! [seeds]
@@ -220,8 +229,9 @@ public class WatershedRecognitionStd {
         markersScaled.convertTo(markersDisplay, CvType.CV_8U);
 
         // Output the markers.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK.png", markersDisplay);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK.png");
+        String markFilename = pOutputFilenamePreamble + "_MARK.png";
+        Imgcodecs.imwrite(markFilename, markersDisplay);
+        RobotLogCommon.d(TAG, "Writing " + markFilename);
 
         Imgproc.circle(markers, new Point(5, 5), 3, new Scalar(255, 255, 255), -1);
         //! [seeds]
@@ -241,48 +251,7 @@ public class WatershedRecognitionStd {
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK2.png");
         */
 
-        // Generate random colors
-        int sizeOfContours = contours.size();
-        Random rng = new Random(12345);
-        List<Scalar> colors = new ArrayList<>(sizeOfContours);
-        for (int i = 0; i < sizeOfContours; i++) {
-            int b = rng.nextInt(256);
-            int g = rng.nextInt(256);
-            int r = rng.nextInt(256);
-
-            colors.add(new Scalar(b, g, r));
-        }
-
-        // Create the result image
-        Mat dst = Mat.zeros(markers.size(), CvType.CV_8UC3);
-        byte[] dstData = new byte[(int) (dst.total() * dst.channels())];
-        dst.get(0, 0, dstData);
-
-        // Fill labeled objects with random colors
-        int[] markersData = new int[(int) (markers.total() * markers.channels())];
-        markers.get(0, 0, markersData);
-        for (int i = 0; i < markers.rows(); i++) {
-            for (int j = 0; j < markers.cols(); j++) {
-                int index = markersData[i * markers.cols() + j];
-                if (index > 0 && index <= sizeOfContours) {
-                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 1).val[0];
-                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 1).val[1];
-                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 1).val[2];
-                } else {
-                    dstData[(i * dst.cols() + j) * 3 + 0] = 0;
-                    dstData[(i * dst.cols() + j) * 3 + 1] = 0;
-                    dstData[(i * dst.cols() + j) * 3 + 2] = 0;
-                }
-            }
-        }
-
-        dst.put(0, 0, dstData);
-
-        // Visualize the final image
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "WS.png");
-        //! [watershed]
-
+        showWatershedColor(markers, pOutputFilenamePreamble);
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
@@ -306,7 +275,23 @@ public class WatershedRecognitionStd {
         Imgcodecs.imwrite(redFilename, redChannel);
         RobotLogCommon.d(TAG, "Writing " + redFilename);
 
-        return prepareAndExecuteWatershed(redChannel, pImageROI, sharp, 175, Imgproc.THRESH_BINARY, pOutputFilenamePreamble);
+        // Both standard examples use OTSU but we get better results
+        // (the interiors of the cards go to white) with a binary
+        // threshold - either inverted or not.
+        Mat thresholded = new Mat(); // output binary image
+        Imgproc.threshold(redChannel, thresholded,
+                Math.abs(175),
+                255,   // white
+                Imgproc.THRESH_BINARY);
+
+        String thrFilename = pOutputFilenamePreamble + "_THR.png";
+        Imgcodecs.imwrite(thrFilename, thresholded);
+        RobotLogCommon.v(TAG, "Writing " + thrFilename);
+
+        Mat watershedMarkers = WatershedUtils.applyWatershedHybrid(thresholded, pImageROI, sharp,
+                pOutputFilenamePreamble, "");
+        showWatershedColor(watershedMarkers, pOutputFilenamePreamble);
+        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
     private RobotConstants.RecognitionResults watershedCoinsHybrid(Mat pImageROI, String pOutputFilenamePreamble) {
@@ -321,13 +306,31 @@ public class WatershedRecognitionStd {
         Imgproc.cvtColor(shifted, gray, Imgproc.COLOR_BGR2GRAY);
 
         // Output the grayscale image.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_GRAY.png", gray);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_GRAY.png");
+        String grayFilename = pOutputFilenamePreamble + "_GRAY.png";
+        Imgcodecs.imwrite(grayFilename, gray);
+        RobotLogCommon.d(TAG, "Writing " + grayFilename);
 
-        //!! The standard image of coins needs Imgproc.THRESH_BINARY_INV | Imgproc.THRESH_OTSU
-        //!! The pyimagesearch_coins_02.png needs Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU
-        //**TODO pyimagesearch_coins_01.png needs Imgproc.THRESH_BINARY
-        return prepareAndExecuteWatershed(gray, pImageROI, sharp, 100, Imgproc.THRESH_BINARY, pOutputFilenamePreamble);
+        //**TODO Parameterize the thresholding types; default to Imgproc.THRESH_BINARY.
+        // Including the type in the XML is better than our current method of negating
+        // the low threshold value to indicate THRESH_BINARY_INV.
+
+        //!! The standard image of coins is best with Imgproc.THRESH_BINARY_INV | Imgproc.THRESH_OTSU
+        //!! pyimagesearch_coins_02.png is best with Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU
+        //!! pyimagesearch_coins_01.png is best with Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU
+        Mat thresholded = new Mat(); // output binary image
+        Imgproc.threshold(gray, thresholded,
+                Math.abs(100),
+                255,   // white
+                Imgproc.THRESH_BINARY | Imgproc.THRESH_OTSU);
+
+        String thrFilename = pOutputFilenamePreamble + "_THR.png";
+        Imgcodecs.imwrite(thrFilename, thresholded);
+        RobotLogCommon.d(TAG, "Writing " + thrFilename);
+
+        Mat watershedMarkers = WatershedUtils.applyWatershedHybrid(thresholded, pImageROI, sharp,
+                pOutputFilenamePreamble, "");
+        showWatershedColor(watershedMarkers, pOutputFilenamePreamble);
+        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
     // Source: standard Java example - specific to the cards image.
@@ -359,169 +362,11 @@ public class WatershedRecognitionStd {
         return src;
     }
 
-    public static RobotConstants.RecognitionResults prepareAndExecuteWatershed(Mat pGrayImage, Mat pImageROI, Mat pSharp,
-                                                                               int pThresholdLow,
-                                                                               int pThresholdType,
-                                                                               String pOutputFilenamePreamble) {
-
-        // Both standard examples use OTSU but we get better results
-        // (the interiors of the cards go to white) with a binary
-        // threshold - either inverted or not.
-        Mat bw = new Mat();
-        Imgproc.threshold(pGrayImage, bw, pThresholdLow, 255, pThresholdType);
-
-        // Output the thresholded image.
-        String thrFilename = pOutputFilenamePreamble + "_THR.png";
-        Imgcodecs.imwrite(thrFilename, bw);
-        RobotLogCommon.d(TAG, "Writing " + thrFilename);
-        //! [bin]
-
-        // Both Python examples perform two morphological openings but the
-        // standard Java example does not.
-        /*
-        # noise removal
-        kernel = np.ones((3,3),np.uint8)
-        opening = cv.morphologyEx(thresh,cv.MORPH_OPEN,kernel, iterations = 2)
-
-        Mat openKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.morphologyEx(bw, bw, Imgproc.MORPH_OPEN, openKernel, new Point(-1, -1), 2);
-
-        String openFilename = pOutputFilenamePreamble + "_OPEN.png";
-        Imgcodecs.imwrite(openFilename, bw);
-        RobotLogCommon.d(TAG, "Writing " + openFilename);
-         */
-
-        // Follow the Python example and perform dilation for background identification.
-        Mat sure_bg = new Mat();
-        Mat dilateKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.dilate(bw, sure_bg, dilateKernel, new Point(-1, -1), 3);
-
-        String bgFilename = pOutputFilenamePreamble + "_BG.png";
-        Imgcodecs.imwrite(bgFilename, sure_bg);
-        RobotLogCommon.d(TAG, "Writing " + bgFilename);
-
-        //! [dist]
-        // Follow both examples and perform the distance transform
-        // algorithm. Imgproc.DIST_L2 is a flag for Euclidean distance.
-        // Output is 32FC1.
-        Mat dist = new Mat();
-        Imgproc.distanceTransform(bw, dist, Imgproc.DIST_L2, 3);
-
-        //##PY The normalization steps in the c++ example are not necessary
-        // - just normalize to the range of 0 - 255.
-        Core.normalize(dist, dist, 0.0, 255.0, Core.NORM_MINMAX);
-        Mat dist_8u = new Mat();
-        dist.convertTo(dist_8u, CvType.CV_8U);
-
-        // Output the transformed image.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_DIST.png", dist_8u);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
-        //! [dist]
-
-        //! [peaks]
-        // Follow the c++ example and threshold to obtain the peaks.
-        // These will be the markers for the foreground objects.
-        //##PY Since we've already normalized to a range of 0 - 255 we can replace this
-        // Imgproc.threshold(dist, dist, 0.4, 1.0, Imgproc.THRESH_BINARY);
-        Mat sure_fg = new Mat();
-        Imgproc.threshold(dist_8u, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
-
-        // From the c++ example. The Python example does not do this.
-        // Dilate a bit the thresholded image.
-        Mat dilationKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
-        Imgproc.dilate(sure_fg, sure_fg, dilationKernel);
-
-        // Output the foreground peaks.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_FG.png", sure_fg);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_FG.png");
-        //! [peaks]
-
-        //! [seeds]
-        //##PY Skip the conversion steps in the standard Java example because
-        // we've already created the 8-bit Mat dist_8u.
-
-        // At last find the sure foreground objects.
-        // The Python example uses connectedComponents; the c++ example uses findContours.
-        List<MatOfPoint> contours = new ArrayList<>();
-        Mat hierarchy = new Mat();
-        Imgproc.findContours(sure_fg, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-
-        //#PY added - output the contours.
-        Mat contoursOut = pImageROI.clone();
-        ShapeDrawing.drawShapeContours(contours, contoursOut);
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON.png", contoursOut);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON.png");
-
-        // Follow the Python example to find the unknown regions
-        //  sure_fg = np.uint8(sure_fg)
-        //  unknown = cv2.subtract(sure_bg, sure_fg)
-        Mat unknown = new Mat();
-        Core.subtract(sure_bg, sure_fg, unknown);
-
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_UNK.png", unknown);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_UNK.png");
-
-        // Create the markers for the watershed algorithm. From the comments
-        // in the Python example: "The regions we know for sure (whether
-        // foreground or background) are labelled with any positive integers,
-        // but different integers, and the areas we don't know for sure are
-        // just left as zero." So we'll start with markers initialized to 1
-        // for the sure background.
-        Mat markers = Mat.ones(dist.size(), CvType.CV_32S);
-
-        // Follow the standard Java example and draw the foreground markers.
-        for (int i = 0; i < contours.size(); i++) {
-            Imgproc.drawContours(markers, contours, i, new Scalar(i + 2), -1);
-        }
-
-        // Follow the Python example --
-        // # Now, mark the region of unknown with zero
-        // markers[unknown==255] = 0
-
-        // Since we don't have that nice Python syntax,
-        // we need to iterate through the Mat of unknowns and for every
-        // white (255) value, set the marker at the same location to 0.
-        // See https://answers.opencv.org/question/5/how-to-get-and-modify-the-pixel-of-mat-in-java/?answer=8#post-id-8
-
-        // The number of elements in these two arrays should be the same.
-        byte[] unknownData = new byte[(int) (unknown.total() * unknown.channels())];
-        int[] markerData = new int[(int) (markers.total() * markers.channels())];
-        int numMarkerRows = markers.rows();
-        int numMarkerCols = markers.cols();
-        unknown.get(0, 0, unknownData);
-        markers.get(0, 0, markerData);
-        int sharedIndex;
-        for (int i = 0; i < numMarkerRows; i++) {
-            for (int j = 0; j < numMarkerCols; j++) {
-                sharedIndex = (i * numMarkerCols) + j;
-                if (((int) unknownData[sharedIndex] & 0xff) == 255) // Java doesn't have an unsigned byte!
-                    markerData[sharedIndex] = 0;
-            }
-        }
-
-        markers.put(0, 0, markerData); // back into Mat
-
-        // Draw the markers - scaled so that they show - and with the
-        // unknowns merged in. Note that there is only a small difference
-        // between the unknown regions (at level 0) and the background.
-        Mat markersScaled = new Mat();
-        markers.convertTo(markersScaled, CvType.CV_32F);
-        Core.normalize(markersScaled, markersScaled, 0.0, 255.0, Core.NORM_MINMAX);
-        Mat markersDisplay = new Mat();
-        markersScaled.convertTo(markersDisplay, CvType.CV_8U);
-
-        // Output the markers.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_MARK.png", markersDisplay);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_MARK.png");
-
-        //! [watershed]
-        // Perform the watershed algorithm
-        Imgproc.watershed(pSharp, markers);
-
+    private void showWatershedColor(Mat pMarkers, String pOutputFilenamePreamble) {
         // Generate random colors
         Random rng = new Random(12345);
-        List<Scalar> colors = new ArrayList<>(contours.size());
-        for (int i = 0; i < contours.size(); i++) {
+        List<Scalar> colors = new ArrayList<>(pMarkers.rows());
+        for (int i = 0; i < pMarkers.rows(); i++) {
             int b = rng.nextInt(256);
             int g = rng.nextInt(256);
             int r = rng.nextInt(256);
@@ -529,25 +374,25 @@ public class WatershedRecognitionStd {
         }
 
         // Create the result image
-        Mat dst = Mat.zeros(markers.size(), CvType.CV_8UC3);
+        Mat dst = Mat.zeros(pMarkers.size(), CvType.CV_8UC3);
         byte[] dstData = new byte[(int) (dst.total() * dst.channels())];
         dst.get(0, 0, dstData);
 
         // Fill labeled objects with random colors.
-        int[] markersData = new int[(int) (markers.total() * markers.channels())];
-        markers.get(0, 0, markersData);
-        for (int i = 0; i < markers.rows(); i++) {
-            for (int j = 0; j < markers.cols(); j++) {
-                int index = markersData[i * markers.cols() + j];
+        int[] markersData = new int[(int) (pMarkers.total() * pMarkers.channels())];
+        pMarkers.get(0, 0, markersData);
+        for (int i = 0; i < pMarkers.rows(); i++) {
+            for (int j = 0; j < pMarkers.cols(); j++) {
+                int index = markersData[i * pMarkers.cols() + j];
                 // watershed object markers start at 2
                 if (index >= 2) {
-                    dstData[(i * dst.cols() + j) * 3 + 0] = (byte) colors.get(index - 2).val[0];
-                    dstData[(i * dst.cols() + j) * 3 + 1] = (byte) colors.get(index - 2).val[1];
-                    dstData[(i * dst.cols() + j) * 3 + 2] = (byte) colors.get(index - 2).val[2];
+                    dstData[(((i * dst.cols()) + j) * 3) + 0] = (byte) colors.get(index - 2).val[0];
+                    dstData[(((i * dst.cols()) + j) * 3) + 1] = (byte) colors.get(index - 2).val[1];
+                    dstData[(((i * dst.cols()) + j) * 3) + 2] = (byte) colors.get(index - 2).val[2];
                 } else {
-                    dstData[(i * dst.cols() + j) * 3 + 0] = 0;
-                    dstData[(i * dst.cols() + j) * 3 + 1] = 0;
-                    dstData[(i * dst.cols() + j) * 3 + 2] = 0;
+                    dstData[(((i * dst.cols()) + j) * 3) + 0] = 0;
+                    dstData[(((i * dst.cols()) + j) * 3) + 1] = 0;
+                    dstData[(((i * dst.cols()) + j) * 3) + 2] = 0;
                 }
             }
         }
@@ -557,8 +402,6 @@ public class WatershedRecognitionStd {
         // Visualize the final image
         Imgcodecs.imwrite(pOutputFilenamePreamble + "_WS.png", dst);
         RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_WS.png");
-
-        return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
 }
