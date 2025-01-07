@@ -166,10 +166,10 @@ public class ImageUtils {
         Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
         Imgproc.morphologyEx(invertedChannel, opened, Imgproc.MORPH_OPEN, kernel, new Point(-1, -1), 2);
 
-        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String openFilename = pOutputFilenamePreamble + "_OPEN.png";
             Imgcodecs.imwrite(openFilename, opened);
-            RobotLogCommon.d(TAG, "Writing " + openFilename);
+            RobotLogCommon.vv(TAG, "Writing " + openFilename);
         }
         return opened;
     }
@@ -289,10 +289,10 @@ public class ImageUtils {
         Mat thresholded = applyInRange(adjusted, pHSVParameters.hue_low, pHSVParameters.hue_high,
                 pHSVParameters.saturation_threshold_low, pHSVParameters.value_threshold_low);
 
-        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
             String fullFilename = pOutputFilenamePreamble + "_ADJ_THR" + pFilenameSuffix + ".png";
             Imgcodecs.imwrite(fullFilename, thresholded);
-            RobotLogCommon.vv(TAG, "Writing " + fullFilename);
+            RobotLogCommon.d(TAG, "Writing " + fullFilename);
         }
 
         return thresholded;
@@ -378,10 +378,10 @@ public class ImageUtils {
                 255,   // white
                 Imgproc.THRESH_BINARY);
 
-        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
             String fullFilename = pOutputFilenamePreamble + "_ADJ_THR" + pOutputFilenameSuffix + ".png";
             Imgcodecs.imwrite(fullFilename, thresholded);
-            RobotLogCommon.vv(TAG, "Writing " + fullFilename);
+            RobotLogCommon.d(TAG, "Writing " + fullFilename);
         }
 
         return thresholded;
@@ -417,7 +417,7 @@ public class ImageUtils {
 
         Mat thresholded = applyGrayThreshold(adjustedGray, pLowThreshold);
 
-        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
             String fullFilename = pOutputFilenamePreamble + "_ADJ_THR" + pOutputFilenameSuffix + ".png";
             Imgcodecs.imwrite(fullFilename, thresholded);
             RobotLogCommon.d(TAG, "Writing " + fullFilename);
@@ -452,6 +452,7 @@ public class ImageUtils {
         return thresholded;
     }
 
+    // Get the median of any single-channel Mat.
     public static int getSingleChannelMedian(Mat pSingleChannelMat) {
         if ((pSingleChannelMat.dims() != 2) || (!pSingleChannelMat.isContinuous()))
             throw new AutonomousRobotException(TAG, "Expected a single-channel Mat");
