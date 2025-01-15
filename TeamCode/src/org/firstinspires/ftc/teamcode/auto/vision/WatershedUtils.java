@@ -98,10 +98,10 @@ public class WatershedUtils {
         //#PY added - output the contours.
         Mat contoursOut = pImageROI.clone();
         ShapeDrawing.drawShapeContours(contours, contoursOut);
-        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String conFilename = pOutputFilenamePreamble + "_CON" + pOutputFilenameSuffix + ".png";
             Imgcodecs.imwrite(conFilename, contoursOut);
-            RobotLogCommon.v(TAG, "Writing " + conFilename);
+            RobotLogCommon.vv(TAG, "Writing " + conFilename);
         }
 
         // Follow the Python example to find the unknown regions
