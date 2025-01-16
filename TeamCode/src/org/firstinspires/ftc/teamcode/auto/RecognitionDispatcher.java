@@ -91,6 +91,9 @@ public class RecognitionDispatcher extends Application {
         // TestLog_2024-06-06_0817:43.759.txt.0
         RobotLogCommon.initialize(RobotLogCommon.LogIdentifier.TEST_LOG, fullTestCaseDir);
 
+        //**TEST asynchronous writing of OpenCV debug images.
+        DebugImageCommon.initialize((tag, message) -> System.out.println(tag + " " + message));
+
         // Check the contents of a frequently used optional command line argument.
         RobotConstants.Alliance alliance = RobotConstants.Alliance.NONE;
         String allianceParameter = namedParameters.get("alliance"); // optional
@@ -303,6 +306,8 @@ public class RecognitionDispatcher extends Application {
         }
 
         RobotLogCommon.closeLog();
+        //**TEST asynchronous writing of OpenCV debug images.
+        DebugImageCommon.close();
     }
 
     private String buildResultsOnlyDisplayText(String pImageFilename, RobotConstants.RecognitionResults pRecognitionReturn) {

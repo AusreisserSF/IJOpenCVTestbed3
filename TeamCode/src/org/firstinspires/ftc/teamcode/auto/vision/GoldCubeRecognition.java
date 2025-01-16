@@ -4,6 +4,7 @@ import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.TimeStamp;
+import org.firstinspires.ftc.teamcode.auto.DebugImageCommon;
 import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 import org.firstinspires.ftc.teamcode.auto.xml.GoldCubeParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
@@ -75,8 +76,10 @@ public class GoldCubeRecognition {
         Core.extractChannel(pImageROI, selectedChannel, 2);
 
         // Write out the red channel as grayscale.
-        Imgcodecs.imwrite(pOutputFilenamePreamble + "_RED_CHANNEL.png", selectedChannel);
-        RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_CHANNEL.png");
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
+            DebugImageCommon.writeImage(pOutputFilenamePreamble + "_RED_CHANNEL.png", selectedChannel);
+            RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_RED_CHANNEL.png");
+        }
 
         Mat thresholded = ImageUtils.performThresholdOnGray(selectedChannel,
                 pGoldCubeParameters.grayscaleParameters.median_target,
@@ -146,8 +149,8 @@ public class GoldCubeRecognition {
             return RobotConstants.RecognitionResults.RECOGNITION_UNSUCCESSFUL; // don't crash
         }
 
-        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
-            Imgcodecs.imwrite(pOutputFilenamePreamble + "_BRECT.png", drawnRectangle);
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
+            DebugImageCommon.writeImage(pOutputFilenamePreamble + "_BRECT.png", drawnRectangle);
             RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_BRECT.png");
         }
 
