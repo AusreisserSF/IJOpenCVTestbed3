@@ -38,13 +38,13 @@ public class DebugImageCommon {
     private static final Condition imageWriterCondition = imageWriterLock.newCondition();
     private static boolean imageWriterNotification = false; // protected by imageQueueLock
     private static boolean closeImageWriter = false; // protected by imageQueueLock
-    private static DrainOnClose writeFilesOnClose; // protected by imageQueueLock
+    private static DrainOnClose writeFilesOnClose = DrainOnClose.NONE; // protected by imageQueueLock
 
     // Use a Consumer<String> to accommodate System.out.println, the
     // FTC RobotLog, or the Android log.
-    public static synchronized void initialize(BiConsumer<String, String> pLogger) {
+    public static synchronized boolean initialize(BiConsumer<String, String> pLogger) {
         if (imageWriterFuture != null)
-            return; // already initialized
+            return true; // already initialized
 
         logger = pLogger;
         try {
@@ -53,9 +53,11 @@ public class DebugImageCommon {
             imageWriterFuture = Threading.launchAsync(new DebugImageWriter(imageWriterLatch));
             imageWriterLatch.await(); // wait for the DebugImageWriter to start
             logger.accept(TAG, " DebugImageWriter up and running");
+            return true;
         } catch (Throwable throwable) {
             imageWriterFuture = null;
             logger.accept(TAG, " Error in DebugImageWriter initialization; writing of files is disabled");
+            return false;
         }
     }
 
@@ -113,7 +115,7 @@ public class DebugImageCommon {
             Threading.getFutureCompletion(imageWriterFuture, 100);
 
             // After a clean shutdown we can remove all traces of the DebugImageWriter.
-            logger.accept(TAG, " DebugImageWriter thread completed succssfully");
+            logger.accept(TAG, " DebugImageWriter thread completed successfully");
         } catch (Throwable t) {
             // Our Threading.launchAsync method ensures that shutdownNow is called on
             // the executor in which the CompletableFuture is running.
@@ -146,9 +148,9 @@ public class DebugImageCommon {
                     imageWriterNotification = false;
 
                     // If there is a request to close the DebugImageWriter, give up immediately.
-                    if (closeImageWriter) {
+                    if (closeImageWriter && writeFilesOnClose == DrainOnClose.NONE) {
                         logger.accept(TAG, " Closing the DebugImageWriter with " + imageQueue.size() + " entries on the queue");
-                        break;
+                        return null;
                     }
 
                     // This is the normal path.
@@ -164,17 +166,15 @@ public class DebugImageCommon {
                 // We're *outside* the lock so more queue entries or a close request
                 // may come in. But we won't see them until the following writes to
                 // the file system have completed.
-                if (writeFilesOnClose == DrainOnClose.ALL) {
-                    for (Pair<String, Mat> oneImageEntry : drain) {
-                        Imgcodecs.imwrite(oneImageEntry.first, oneImageEntry.second);
-                    }
+                for (Pair<String, Mat> oneImageEntry : drain) {
+                    Imgcodecs.imwrite(oneImageEntry.first, oneImageEntry.second);
                 }
+
                 drain.clear();
             }
 
             return null;
         }
     }
-
 
 }

@@ -61,9 +61,9 @@ public class WatershedUtils {
 
         // Output the transformed image.
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
-            DebugImageCommon.writeImage(pOutputFilenamePreamble + "_DIST" + pOutputFilenameSuffix + ".png", dist_8u);
-            RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
-        }
+            String distFilename = pOutputFilenamePreamble + "_DIST" + pOutputFilenameSuffix + ".png";
+            DebugImageCommon.writeImage(distFilename, dist_8u);
+            RobotLogCommon.d(TAG, "Writing " + distFilename);        }
         //! [dist]
 
         //! [peaks]
