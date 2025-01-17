@@ -1,5 +1,4 @@
-// Partial port of ImageUtils.cpp: only those functions that are
-// needed for ring recognition.
+// Partial port of ImageUtils.cpp.
 package org.firstinspires.ftc.teamcode.auto.vision;
 
 import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
