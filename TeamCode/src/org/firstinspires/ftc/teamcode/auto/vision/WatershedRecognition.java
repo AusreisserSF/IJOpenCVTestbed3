@@ -289,7 +289,7 @@ public class WatershedRecognition {
         RobotLogCommon.v(TAG, "Writing " + thrFilename);
 
         Mat watershedMarkers = WatershedUtils.applyWatershedHybrid(thresholded, pImageROI, sharp,
-                pOutputFilenamePreamble, "");
+                100, pOutputFilenamePreamble, "");
         showWatershedColor(watershedMarkers, pOutputFilenamePreamble);
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
@@ -328,7 +328,7 @@ public class WatershedRecognition {
         RobotLogCommon.d(TAG, "Writing " + thrFilename);
 
         Mat watershedMarkers = WatershedUtils.applyWatershedHybrid(thresholded, pImageROI, sharp,
-                pOutputFilenamePreamble, "");
+                100, pOutputFilenamePreamble, "");
         showWatershedColor(watershedMarkers, pOutputFilenamePreamble);
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }

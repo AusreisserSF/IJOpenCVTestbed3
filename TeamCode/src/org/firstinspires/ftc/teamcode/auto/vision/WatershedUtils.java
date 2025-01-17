@@ -1,8 +1,8 @@
 package org.firstinspires.ftc.teamcode.auto.vision;
 
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
+import org.firstinspires.ftc.teamcode.auto.DebugImageCommon;
 import org.opencv.core.*;
-import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
@@ -16,6 +16,7 @@ public class WatershedUtils {
     // WatershedRecognition.java. The input Mat is a thresholded binary
     // image.
     public static Mat applyWatershedHybrid(Mat pBinaryImage, Mat pImageROI, Mat pSharp,
+                                           int pSureForegroundThresholdLow,
                                            String pOutputFilenamePreamble,
                                            String pOutputFilenameSuffix) {
         //! [bin]
@@ -30,7 +31,7 @@ public class WatershedUtils {
         Imgproc.morphologyEx(bw, bw, Imgproc.MORPH_OPEN, openKernel, new Point(-1, -1), 2);
 
         String openFilename = pOutputFilenamePreamble + "_OPEN.png";
-        Imgcodecs.imwrite(openFilename, bw);
+        DebugImageCommon.writeImage(openFilename, bw);
         RobotLogCommon.d(TAG, "Writing " + openFilename);
          */
 
@@ -41,7 +42,7 @@ public class WatershedUtils {
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String bgFilename = pOutputFilenamePreamble + "_BG" + pOutputFilenameSuffix + ".png";
-            Imgcodecs.imwrite(bgFilename, sure_bg);
+            DebugImageCommon.writeImage(bgFilename, sure_bg);
             RobotLogCommon.vv(TAG, "Writing " + bgFilename);
         }
 
@@ -59,8 +60,8 @@ public class WatershedUtils {
         dist.convertTo(dist_8u, CvType.CV_8U);
 
         // Output the transformed image.
-        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
-            Imgcodecs.imwrite(pOutputFilenamePreamble + "_DIST" + pOutputFilenameSuffix + ".png", dist_8u);
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
+            DebugImageCommon.writeImage(pOutputFilenamePreamble + "_DIST" + pOutputFilenameSuffix + ".png", dist_8u);
             RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_DIST.png");
         }
         //! [dist]
@@ -71,7 +72,7 @@ public class WatershedUtils {
         //##PY Since we've already normalized to a range of 0 - 255 we can replace this
         // Imgproc.threshold(dist, dist, 0.4, 1.0, Imgproc.THRESH_BINARY);
         Mat sure_fg = new Mat();
-        Imgproc.threshold(dist_8u, sure_fg, 100, 255, Imgproc.THRESH_BINARY);
+        Imgproc.threshold(dist_8u, sure_fg, pSureForegroundThresholdLow, 255, Imgproc.THRESH_BINARY);
 
         // From the c++ example. The Python example does not do this.
         // Dilate a bit the thresholded image.
@@ -80,7 +81,7 @@ public class WatershedUtils {
 
         // Output the foreground peaks.
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
-            Imgcodecs.imwrite(pOutputFilenamePreamble + "_FG" + pOutputFilenameSuffix + ".png", sure_fg);
+            DebugImageCommon.writeImage(pOutputFilenamePreamble + "_FG" + pOutputFilenameSuffix + ".png", sure_fg);
             RobotLogCommon.vv(TAG, "Writing " + pOutputFilenamePreamble + "_FG.png");
         }
         //! [peaks]
@@ -100,7 +101,7 @@ public class WatershedUtils {
         ShapeDrawing.drawShapeContours(contours, contoursOut);
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String conFilename = pOutputFilenamePreamble + "_CON" + pOutputFilenameSuffix + ".png";
-            Imgcodecs.imwrite(conFilename, contoursOut);
+            DebugImageCommon.writeImage(conFilename, contoursOut);
             RobotLogCommon.vv(TAG, "Writing " + conFilename);
         }
 
@@ -112,7 +113,7 @@ public class WatershedUtils {
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String unkFilename = pOutputFilenamePreamble + "_UNK" + pOutputFilenameSuffix + ".png";
-            Imgcodecs.imwrite(unkFilename, unknown);
+            DebugImageCommon.writeImage(unkFilename, unknown);
             RobotLogCommon.vv(TAG, "Writing " + unkFilename);
         }
 
@@ -168,7 +169,7 @@ public class WatershedUtils {
         // Output the markers.
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String markFilename = pOutputFilenamePreamble + "_MARK" + pOutputFilenameSuffix + ".png";
-            Imgcodecs.imwrite(markFilename, markersDisplay);
+            DebugImageCommon.writeImage(markFilename, markersDisplay);
             RobotLogCommon.vv(TAG, "Writing " + markFilename);
         }
 

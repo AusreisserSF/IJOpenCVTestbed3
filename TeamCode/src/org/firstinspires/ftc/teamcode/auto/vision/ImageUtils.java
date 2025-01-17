@@ -5,6 +5,7 @@ package org.firstinspires.ftc.teamcode.auto.vision;
 import org.firstinspires.ftc.ftcdevcommon.AutonomousRobotException;
 import org.firstinspires.ftc.ftcdevcommon.Pair;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
+import org.firstinspires.ftc.teamcode.auto.DebugImageCommon;
 import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.opencv.core.*;
@@ -72,8 +73,8 @@ public class ImageUtils {
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
             String imageFilename = pPreamble + "_ROI.png";
+            DebugImageCommon.writeImage(imageFilename, imageROI);
             RobotLogCommon.d(TAG, "Writing image ROI " + imageFilename);
-            Imgcodecs.imwrite(imageFilename, imageROI);
         }
 
         return imageROI;
@@ -106,8 +107,8 @@ public class ImageUtils {
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String sharpFilename = pOutputFilenamePreamble + "_SHARP.png";
-            RobotLogCommon.d(TAG, "Writing " + sharpFilename);
-            Imgcodecs.imwrite(sharpFilename, sharpMat);
+            DebugImageCommon.writeImage(sharpFilename, sharpMat);
+            RobotLogCommon.vv(TAG, "Writing " + sharpFilename);
         }
 
         return sharpMat;
@@ -130,7 +131,7 @@ public class ImageUtils {
             case BLUE ->
                 // The inversion of the red channel gives better contrast
                 // than the blue channel.
-                    Core.extractChannel(pImageROI, selectedChannel, 2); // red
+                Core.extractChannel(pImageROI, selectedChannel, 2); // red
             default -> throw new AutonomousRobotException(TAG, "Alliance must be RED or BLUE");
         }
 
@@ -147,14 +148,14 @@ public class ImageUtils {
             case RED -> {
                 if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
                     String fullFileName = pOutputFilenamePreamble + "_BLUE_INVERTED.png";
-                    Imgcodecs.imwrite(fullFileName, invertedChannel);
+                    DebugImageCommon.writeImage(fullFileName, invertedChannel);
                     RobotLogCommon.v(TAG, "Writing " + fullFileName);
                 }
             }
             case BLUE -> {
                 if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
                     String fullFilename = pOutputFilenamePreamble + "_RED_INVERTED.png";
-                    Imgcodecs.imwrite(fullFilename, invertedChannel);
+                    DebugImageCommon.writeImage(fullFilename, invertedChannel);
                     RobotLogCommon.v(TAG, "Writing " + fullFilename);
                 }
             }
@@ -168,7 +169,7 @@ public class ImageUtils {
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String openFilename = pOutputFilenamePreamble + "_OPEN.png";
-            Imgcodecs.imwrite(openFilename, opened);
+            DebugImageCommon.writeImage(openFilename, opened);
             RobotLogCommon.vv(TAG, "Writing " + openFilename);
         }
         return opened;
@@ -255,25 +256,25 @@ public class ImageUtils {
         return dominantHue;
     }
 
-    // The input image is BGR. This function converts it to HSV, adjusts the saturation and value according
-    // to the targets in the HSVParameters, and applies the OpenCV thresholding function inRange using
+    // The input image is BGR. This function converts it to HSV,
+    // [adjusts the saturation and value according to the targets in the HSVParameters,]
+    // and applies the OpenCV thresholding function inRange using
     // the hue range in the HSVParameters.
     // In the OpenCV tutorial, no blurring is applied before inRange (unlike grayscale thresholding).
     // https://docs.opencv.org/3.4/da/d97/tutorial_threshold_inRange.html
-    public static Mat performInRange(Mat pInputROI, String pOutputFilenamePreamble,
-                                     VisionParameters.HSVParameters pHSVParameters) {
-        return performInRange(pInputROI, pOutputFilenamePreamble, "", pHSVParameters);
-    }
 
     // The file name suffix prevents the overwriting of files in those rate cases
     // where performInRange is called multiple times in the same run.
-    public static Mat performInRange(Mat pInputROI, String pOutputFilenamePreamble, String pFilenameSuffix,
-                                     VisionParameters.HSVParameters pHSVParameters) {
+    public static Mat performInRange(Mat pInputROI, VisionParameters.HSVParameters pHSVParameters,
+                                     String pOutputFilenamePreamble, String pFilenameSuffix) {
         // We're on the HSV path.
         Mat hsvROI = new Mat();
         Imgproc.cvtColor(pInputROI, hsvROI, Imgproc.COLOR_BGR2HSV);
 
         // Adjust the HSV saturation and value levels in the image to match the targets.
+        //## 1/15/2025 Adjustments interfered with the thresholding of blue
+        // IntoTheDeep samples against the gray tiles.
+        /*
         Mat adjusted = adjustSaturationAndValueMedians(hsvROI, pHSVParameters.saturation_median_target, pHSVParameters.value_median_target);
 
         // Convert back to BGR.
@@ -282,16 +283,17 @@ public class ImageUtils {
             Imgproc.cvtColor(adjusted, adjustedBGR, Imgproc.COLOR_HSV2BGR);
 
             String fullFilename = pOutputFilenamePreamble + "_ADJ" + pFilenameSuffix + ".png";
-            Imgcodecs.imwrite(fullFilename, adjustedBGR);
+            DebugImageCommon.writeImage(fullFilename, adjustedBGR);
             RobotLogCommon.vv(TAG, "Writing " + fullFilename);
         }
+        */
 
-        Mat thresholded = applyInRange(adjusted, pHSVParameters.hue_low, pHSVParameters.hue_high,
+        Mat thresholded = applyInRange(hsvROI, pHSVParameters.hue_low, pHSVParameters.hue_high,
                 pHSVParameters.saturation_threshold_low, pHSVParameters.value_threshold_low);
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
-            String fullFilename = pOutputFilenamePreamble + "_ADJ_THR" + pFilenameSuffix + ".png";
-            Imgcodecs.imwrite(fullFilename, thresholded);
+            String fullFilename = pOutputFilenamePreamble + "_THR" + pFilenameSuffix + ".png";
+            DebugImageCommon.writeImage(fullFilename, thresholded);
             RobotLogCommon.d(TAG, "Writing " + fullFilename);
         }
 
@@ -334,9 +336,9 @@ public class ImageUtils {
     //!! findContours works without blurring and morphological opening.
     //!! But there are fewer artifacts in the contour recognition if only
     //!! morphological opening is included.
-    public static List<MatOfPoint> performInRangeAndFindContours(Mat pInputROI,
-                                                                 String pOutputFilenamePreamble, VisionParameters.HSVParameters pHSVParameters) {
-        Mat thresholded = performInRange(pInputROI, pOutputFilenamePreamble, pHSVParameters);
+    public static List<MatOfPoint> performInRangeAndFindContours(Mat pInputROI, VisionParameters.HSVParameters pHSVParameters,
+                                                                 String pOutputFilenamePreamble, String pOutputFilenameSuffix) {
+        Mat thresholded = performInRange(pInputROI, pHSVParameters, pOutputFilenamePreamble, pOutputFilenameSuffix);
         Mat morphed = new Mat();
         Imgproc.erode(thresholded, morphed, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5)));
         Imgproc.dilate(morphed, morphed, Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5)));
@@ -368,7 +370,7 @@ public class ImageUtils {
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String fullFilename = pOutputFilenamePreamble + "_ADJ" + pOutputFilenameSuffix + ".png";
-            Imgcodecs.imwrite(fullFilename, adjustedGray);
+            DebugImageCommon.writeImage(fullFilename, adjustedGray);
             RobotLogCommon.vv(TAG, "Writing adjusted grayscale image " + fullFilename);
         }
 
@@ -376,11 +378,11 @@ public class ImageUtils {
         Imgproc.threshold(adjustedGray, thresholded,
                 Math.abs(pLowThreshold),
                 255,   // white
-                Imgproc.THRESH_BINARY);
+                pLowThreshold >= 0 ? Imgproc.THRESH_BINARY : Imgproc.THRESH_BINARY_INV); // thresholding type);
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
             String fullFilename = pOutputFilenamePreamble + "_ADJ_THR" + pOutputFilenameSuffix + ".png";
-            Imgcodecs.imwrite(fullFilename, thresholded);
+            DebugImageCommon.writeImage(fullFilename, thresholded);
             RobotLogCommon.d(TAG, "Writing " + fullFilename);
         }
 
@@ -398,7 +400,7 @@ public class ImageUtils {
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String fullFilename = pOutputFilenamePreamble + "_GRAY" + pOutputFilenameSuffix + ".png";
-            Imgcodecs.imwrite(fullFilename, grayROI);
+            DebugImageCommon.writeImage(fullFilename, grayROI);
             RobotLogCommon.vv(TAG, "Writing " + fullFilename);
         }
 
@@ -411,7 +413,7 @@ public class ImageUtils {
         Mat adjustedGray = adjustGrayscaleMedian(pGrayInputROI, pGrayscaleMedianTarget);
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String fullFilename = pOutputFilenamePreamble + "_ADJ" + pOutputFilenameSuffix + ".png";
-            Imgcodecs.imwrite(fullFilename, adjustedGray);
+            DebugImageCommon.writeImage(fullFilename, adjustedGray);
             RobotLogCommon.vv(TAG, "Writing adjusted grayscale image " + fullFilename);
         }
 
@@ -419,7 +421,7 @@ public class ImageUtils {
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
             String fullFilename = pOutputFilenamePreamble + "_ADJ_THR" + pOutputFilenameSuffix + ".png";
-            Imgcodecs.imwrite(fullFilename, thresholded);
+            DebugImageCommon.writeImage(fullFilename, thresholded);
             RobotLogCommon.d(TAG, "Writing " + fullFilename);
         }
 
@@ -508,7 +510,7 @@ public class ImageUtils {
             Mat contoursDrawn = pImageROI.clone();
             ShapeDrawing.drawShapeContours(contours, contoursDrawn);
             String fullFilename = pOutputFilenamePreamble + "_CON.png";
-            Imgcodecs.imwrite(fullFilename, contoursDrawn);
+            DebugImageCommon.writeImage(fullFilename, contoursDrawn);
             RobotLogCommon.v(TAG, "Writing " + fullFilename);
         }
 

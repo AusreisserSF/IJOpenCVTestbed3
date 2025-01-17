@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode.auto.vision;
 
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
+import org.firstinspires.ftc.teamcode.auto.DebugImageCommon;
 import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
@@ -48,8 +49,8 @@ public class ShapeDrawing {
         Imgproc.line(pImageROI, xUpperLeft, xLowerRight, pBGRColor, drawnXThickness);
         Imgproc.line(pImageROI, xLowerLeft, xUpperRight, pBGRColor, drawnXThickness);
 
-        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
-            Imgcodecs.imwrite(pOutputFilenamePreamble + "NO_BRECT.png", pImageROI);
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
+            DebugImageCommon.writeImage(pOutputFilenamePreamble + "NO_BRECT.png", pImageROI);
             RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "NO_BRECT.png");
         }
     }

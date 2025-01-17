@@ -120,7 +120,7 @@ public class GoldCubeRecognition {
     public RobotConstants.RecognitionResults colorPathWebcam(Mat pImageROI, String pOutputFilenamePreamble,
                                                              GoldCubeParameters pGoldCubeParameters) {
 
-        Mat thresholded = ImageUtils.performInRange(pImageROI, pOutputFilenamePreamble, pGoldCubeParameters.hsvParameters);
+        Mat thresholded = ImageUtils.performInRange(pImageROI, pGoldCubeParameters.hsvParameters, pOutputFilenamePreamble, "");
 
         // Clean up the thresholded image via morphological opening.
         Mat morphed = new Mat();
