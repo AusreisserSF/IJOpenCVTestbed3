@@ -363,7 +363,7 @@ public class ImageUtils {
                 (pHue >= 0 && pHue <= pTargetHigh);
     }
 
-    public static Mat simpleThreshold(Mat pGrayInputROI, int pGrayscaleMedianTarget, int pLowThreshold,
+    public static Mat simpleThreshold(Mat pGrayInputROI, int pLowThreshold,
                                       String pOutputFilenamePreamble, String pOutputFilenameSuffix) {
         //## 1/17/2025 Adjustments not needed for IntoTheDeep samples.
         // Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(pGrayInputROI, pGrayscaleMedianTarget);
