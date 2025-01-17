@@ -175,7 +175,7 @@ public class ImageUtils {
         return opened;
     }
 
-    // Adjust the median of a grayscale image.
+    //**TODO 1/17/25 Check whether this is ever helpful  Adjust the median of a grayscale image.
     public static Mat adjustGrayscaleMedian(Mat pGray, int pTarget) {
         int medianGray = getSingleChannelMedian(pGray);
         RobotLogCommon.d(TAG, "Original image: grayscale median " + medianGray);
@@ -235,7 +235,7 @@ public class ImageUtils {
         Imgproc.calcHist(channelsHSV, new MatOfInt(0), pMask, hueHist, new MatOfInt(hueHistSize), hueHistRange, false);
 
         // Normalize the result to [ 0, hue_hist.rows ]
-        //## Normalization is done for graphings, which we don't need.
+        //## Normalization is done for graphing, which we don't need.
         // normalize(hue_hist, hue_hist, 0, hue_hist.rows, NORM_MINMAX, -1, Mat());
 
         //## DEBUG
@@ -364,9 +364,11 @@ public class ImageUtils {
                 (pHue >= 0 && pHue <= pTargetHigh);
     }
 
-    public static Mat simpleAdjustAndThreshold(Mat pGrayInputROI, int pGrayscaleMedianTarget, int pLowThreshold,
-                                               String pOutputFilenamePreamble, String pOutputFilenameSuffix) {
-        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(pGrayInputROI, pGrayscaleMedianTarget);
+    public static Mat simpleThreshold(Mat pGrayInputROI, int pGrayscaleMedianTarget, int pLowThreshold,
+                                      String pOutputFilenamePreamble, String pOutputFilenameSuffix) {
+        //## 1/17/2025 Adjustments not needed for IntoTheDeep samples.
+        // Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(pGrayInputROI, pGrayscaleMedianTarget);
+        Mat adjustedGray = pGrayInputROI;
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String fullFilename = pOutputFilenamePreamble + "_ADJ" + pOutputFilenameSuffix + ".png";
@@ -454,7 +456,7 @@ public class ImageUtils {
         return thresholded;
     }
 
-    // Get the median of any single-channel Mat.
+    //**TODO 1/17/25 Check whether this is ever helpful  Get the median of any single-channel Mat.
     public static int getSingleChannelMedian(Mat pSingleChannelMat) {
         if ((pSingleChannelMat.dims() != 2) || (!pSingleChannelMat.isContinuous()))
             throw new AutonomousRobotException(TAG, "Expected a single-channel Mat");
