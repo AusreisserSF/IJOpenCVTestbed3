@@ -91,16 +91,9 @@ public class DebugImageCommon {
         if (imageWriterFuture == null)
             return;
 
-        // If the DebugImageWriter is hanging onto the lock for some reason or it
-        // has already exited because of an InterruptedException, make sure it
-        // can't be reused.
-        if (!imageWriterLock.tryLock() || imageWriterFuture.isDone()) {
-            imageWriterFuture = null;
-            return;
-        }
-
         // Signal the DebugImageWriter to exit.
         try {
+            Objects.requireNonNull(imageWriterLock).lock();
             writeFilesOnClose = pWriteFiles;
             imageWriterNotification = true;
             closeImageWriter = true;
@@ -112,7 +105,7 @@ public class DebugImageCommon {
         // Check if the DebugImageWriter has shut down cleanly.
         try {
             // Use a timeout value so that we never get hung up here.
-            Threading.getFutureCompletion(imageWriterFuture, 100);
+            Threading.getFutureCompletion(imageWriterFuture);
 
             // After a clean shutdown we can remove all traces of the DebugImageWriter.
             logger.accept(TAG, " DebugImageWriter thread completed successfully");
@@ -157,20 +150,20 @@ public class DebugImageCommon {
                     // Drain one or more entries from the queue to a local collection
                     // and then write them out *after* the lock is released.
                     Objects.requireNonNull(imageQueue).drainTo(drain); // must be protected by a lock
+                    for (Pair<String, Mat> oneImageEntry : drain) {
+                        Imgcodecs.imwrite(oneImageEntry.first, oneImageEntry.second);
+                    }
+
+                    drain.clear();
+
+                    if (closeImageWriter)
+                        return null;
+
                 } catch (InterruptedException iex) {  // await() can throw InterruptedException
                     break; // DebugImageWriter will exit
                 } finally {
                     Objects.requireNonNull(imageWriterLock).unlock();
                 }
-
-                // We're *outside* the lock so more queue entries or a close request
-                // may come in. But we won't see them until the following writes to
-                // the file system have completed.
-                for (Pair<String, Mat> oneImageEntry : drain) {
-                    Imgcodecs.imwrite(oneImageEntry.first, oneImageEntry.second);
-                }
-
-                drain.clear();
             }
 
             return null;
