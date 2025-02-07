@@ -174,7 +174,6 @@ public class ImageUtils {
         return opened;
     }
 
-    //**TODO 1/17/25 Check whether this is ever helpful  Adjust the median of a grayscale image.
     public static Mat adjustGrayscaleMedian(Mat pGray, int pTarget) {
         int medianGray = getSingleChannelMedian(pGray);
         RobotLogCommon.d(TAG, "Original image: grayscale median " + medianGray);
@@ -256,13 +255,14 @@ public class ImageUtils {
     }
 
     // The input image is BGR. This function converts it to HSV,
-    // [adjusts the saturation and value according to the targets in the HSVParameters,]
-    // and applies the OpenCV thresholding function inRange using
-    // the hue range in the HSVParameters.
-    // In the OpenCV tutorial, no blurring is applied before inRange (unlike grayscale thresholding).
+    // adjusts the saturation and value according to the targets in
+    // the HSVParameters, and applies the OpenCV thresholding function
+    // inRange using the hue range in the HSVParameters.
+    // In the OpenCV tutorial, no blurring is applied before inRange
+    // (unlike grayscale thresholding).
     // https://docs.opencv.org/3.4/da/d97/tutorial_threshold_inRange.html
 
-    // The file name suffix prevents the overwriting of files in those rate cases
+    // The file name suffix prevents the overwriting of files in cases
     // where performInRange is called multiple times in the same run.
     public static Mat performInRange(Mat pInputROI, VisionParameters.HSVParameters pHSVParameters,
                                      String pOutputFilenamePreamble, String pFilenameSuffix) {
@@ -271,9 +271,6 @@ public class ImageUtils {
         Imgproc.cvtColor(pInputROI, hsvROI, Imgproc.COLOR_BGR2HSV);
 
         // Adjust the HSV saturation and value levels in the image to match the targets.
-        //## 1/15/2025 Adjustments interfered with the thresholding of blue
-        // IntoTheDeep samples against the gray tiles.
-        /*
         Mat adjusted = adjustSaturationAndValueMedians(hsvROI, pHSVParameters.saturation_median_target, pHSVParameters.value_median_target);
 
         // Convert back to BGR.
@@ -285,9 +282,8 @@ public class ImageUtils {
             DebugImageCommon.writeImage(fullFilename, adjustedBGR);
             RobotLogCommon.vv(TAG, "Writing " + fullFilename);
         }
-        */
 
-        Mat thresholded = applyInRange(hsvROI, pHSVParameters.hue_low, pHSVParameters.hue_high,
+        Mat thresholded = applyInRange(adjusted, pHSVParameters.hue_low, pHSVParameters.hue_high,
                 pHSVParameters.saturation_threshold_low, pHSVParameters.value_threshold_low);
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
@@ -363,11 +359,9 @@ public class ImageUtils {
                 (pHue >= 0 && pHue <= pTargetHigh);
     }
 
-    public static Mat simpleThreshold(Mat pGrayInputROI, int pLowThreshold,
-                                      String pOutputFilenamePreamble, String pOutputFilenameSuffix) {
-        //## 1/17/2025 Adjustments not needed for IntoTheDeep samples.
-        // Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(pGrayInputROI, pGrayscaleMedianTarget);
-        Mat adjustedGray = pGrayInputROI;
+    public static Mat simpleAdjustAndThreshold(Mat pGrayInputROI, int pGrayscaleMedianTarget, int pLowThreshold,
+                                               String pOutputFilenamePreamble, String pOutputFilenameSuffix) {
+        Mat adjustedGray = ImageUtils.adjustGrayscaleMedian(pGrayInputROI, pGrayscaleMedianTarget);
 
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.vv)) {
             String fullFilename = pOutputFilenamePreamble + "_ADJ" + pOutputFilenameSuffix + ".png";
@@ -455,7 +449,6 @@ public class ImageUtils {
         return thresholded;
     }
 
-    //**TODO 1/17/25 Check whether this is ever helpful  Get the median of any single-channel Mat.
     public static int getSingleChannelMedian(Mat pSingleChannelMat) {
         if ((pSingleChannelMat.dims() != 2) || (!pSingleChannelMat.isContinuous()))
             throw new AutonomousRobotException(TAG, "Expected a single-channel Mat");
