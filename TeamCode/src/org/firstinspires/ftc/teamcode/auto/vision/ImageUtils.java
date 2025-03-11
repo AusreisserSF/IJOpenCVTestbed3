@@ -553,5 +553,60 @@ public class ImageUtils {
             throw new AutonomousRobotException(TAG, "getColorChannelMedian with mask is not supported at this time");
     }
 
+    //**TODO Imported from IJIntoTheDeepVision on 3/11/2025.
+    // To simplify watershedding (or anything else), reduce the number
+    // of contours in a thresholded image by filtering out those that
+    // have an area less than a minimum.
+    public static FilteredContoursRecord filterContours(Mat pThresholded, int pImageHeight, int pImageWidth, double pMinArea,
+                                                        String pOutputFilenamePreamble, String pOutputFilenameSuffix) {
+        List<MatOfPoint> contours = new ArrayList<>();
+        Mat hierarchy = new Mat();
+        Imgproc.findContours(pThresholded, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+        RobotLogCommon.d(TAG, "Number of " + pOutputFilenameSuffix + " contours before filtering " + contours.size());
+
+        // Draw on an all-black background; drawContours requires a BGR image.
+        Mat filteredBGR = Mat.zeros(pImageHeight, pImageWidth, CvType.CV_8UC3);
+
+        int numFiltered = 0;
+        List<MatOfPoint> filteredContours = new ArrayList<>();
+        Scalar allWhite = new Scalar(255, 255, 255);
+        for (int i = 0; i < contours.size(); i++) {
+            if (Imgproc.contourArea(contours.get(i)) > pMinArea) {
+                numFiltered++;
+                filteredContours.add(contours.get(i));
+                Imgproc.drawContours(filteredBGR, contours, i, allWhite, Imgproc.FILLED);
+            }
+        }
+
+        RobotLogCommon.d(TAG, "Number of " + pOutputFilenameSuffix + " contours after filtering " + numFiltered);
+
+        // Convert the BGR image to grayscale, which in our case should be binary.
+        Mat filteredBinary = new Mat();
+        Imgproc.cvtColor(filteredBGR, filteredBinary, Imgproc.COLOR_BGR2GRAY);
+
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.v)) {
+            String fullFilename = pOutputFilenamePreamble + "_FB" + pOutputFilenameSuffix + ".png";
+            DebugImageCommon.writeImage(fullFilename, filteredBinary);
+            RobotLogCommon.v(TAG, "Writing " + fullFilename);
+        }
+
+        return new FilteredContoursRecord(contours.size(), numFiltered, filteredContours, filteredBinary);
+    }
+
+    public static class FilteredContoursRecord {
+        public final int numUnfilteredContours;
+        public final int numFilteredContours;
+        public final List<MatOfPoint> filteredContours;
+        public Mat filteredBinaryOutput;
+
+        public FilteredContoursRecord(int pNumUnfilteredContours, int pNumFilteredContours,
+                                      List<MatOfPoint> pFilteredContours, Mat pFilteredBinaryOutput) {
+            numUnfilteredContours = pNumUnfilteredContours;
+            numFilteredContours = pNumFilteredContours;
+            filteredContours = pFilteredContours;
+            filteredBinaryOutput = pFilteredBinaryOutput;
+        }
+    }
+
 }
 

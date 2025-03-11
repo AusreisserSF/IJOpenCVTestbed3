@@ -14,6 +14,8 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.firstinspires.ftc.teamcode.auto.vision.RedAllianceSampleRecognition.RecognitionPath.RED_CHANNEL_GRAYSCALE;
@@ -33,10 +35,10 @@ public class RedAllianceSampleRecognition {
     }
 
     // FTC 2024-2025 IntoTheDeep.
-     public RobotConstants.RecognitionResults recognizeRedAllianceSamples(ImageProvider pImageProvider,
-                                                                      VisionParameters.ImageParameters pImageParameters,
-                                                                      RedAllianceSampleParameters pRedAllianceSampleParameters,
-                                                                          RecognitionPath pRecognitionPath) throws InterruptedException {
+    public RobotConstants.RecognitionResults recognizeRedAllianceSamples(ImageProvider pImageProvider,
+                                                                         VisionParameters.ImageParameters pImageParameters,
+                                                                         RedAllianceSampleParameters pRedAllianceSampleParameters,
+                                                                         RecognitionPath pRecognitionPath) throws InterruptedException {
 
         RobotLogCommon.d(TAG, "In RedAllianceSampleRecognition.recognizeRedAllianceSamples");
 
@@ -54,7 +56,7 @@ public class RedAllianceSampleRecognition {
         if (pRecognitionPath != RecognitionPath.RED_CHANNEL_GRAYSCALE)
             throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
 
-         return redChannelPath(imageROI, outputFilenamePreamble, pRedAllianceSampleParameters);
+        return redChannelPath(imageROI, outputFilenamePreamble, pRedAllianceSampleParameters);
     }
 
     private RobotConstants.RecognitionResults redChannelPath(Mat pImageROI, String pOutputFilenamePreamble,
@@ -76,26 +78,63 @@ public class RedAllianceSampleRecognition {
                 pRedAllianceSampleParameters.redGrayParameters.threshold_low,
                 pOutputFilenamePreamble, "");
 
-        //**TODO Filter out artifacts using the method of IJIntoTheDeepVision.sampleRecognition().
         //**TODO As part of filtering you'll have to get an idea of the proximity of the
         // camera to the samples; this will affect the pixel counts.
-        /*
-                       // Sanitize the thresholded red alliance samples by eliminating contours
-                // that are below the minimum area threshold.
-                ImageUtils.FilteredContoursRecord filteredA = ImageUtils.filterContours(allianceBinaryMorphed, pImageROI.rows(), pImageROI.cols(),
-                        sampleParameters.sampleCriteria.min_sample_area / 2.0,
-                        pOutputFilenamePreamble, "_A");
 
-                // Capture statistics.
-                SampleRecognitionStatistics.numUnfilteredAllianceContours = filteredA.numUnfilteredContours;
-                SampleRecognitionStatistics.numFilteredAllianceContours = filteredA.numFilteredContours;
+        // Sanitize the thresholded red alliance samples by eliminating contours
+        // that are below the minimum area threshold.
+        ImageUtils.FilteredContoursRecord filteredA = ImageUtils.filterContours(thresholded, pImageROI.rows(), pImageROI.cols(),
+                pRedAllianceSampleParameters.sampleCriteria.min_sample_area / 2.0,
+                pOutputFilenamePreamble, "_A");
 
-         */
+        // Log statistics.
+        RobotLogCommon.d(TAG, "numUnfilteredAllianceContours " + filteredA.numUnfilteredContours);
+        RobotLogCommon.d(TAG, "numFilteredAllianceContours " + filteredA.numFilteredContours);
 
         //**TODO Classify the remaining samples based on the rectangle filtering
-        // from pyimagesearch.
+        List<RotatedRect> rectanglesFound = new ArrayList<>();
+        RotatedRect oneRotatedRect;
+        for (MatOfPoint oneContour : filteredA.filteredContours) {
+            oneRotatedRect = findRectangle(oneContour);
+            if (oneRotatedRect != null) {
+                rectanglesFound.add(oneRotatedRect);
+                RobotLogCommon.d(TAG, "Found a rectangle with center x " + oneRotatedRect.center.x +
+                        ", y " + oneRotatedRect.center.y);
+            }
+        }
+
+        Point[] rectPoints = new Point[4];
+        Mat drawnRects = new Mat();
+        List<MatOfPoint> rectContours = new ArrayList<>();
+        for (RotatedRect oneRect : rectanglesFound) {
+            // Draw a rotated rectangle around a sample.
+            oneRect.points(rectPoints);
+            rectContours.add(new MatOfPoint(rectPoints)); // List is required
+            Imgproc.drawContours(drawnRects, rectContours, 0, new Scalar(0, 255, 0), 2);
+            rectContours.clear();
+        }
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
 
+    // Based on https://docs.opencv.org/3.4/da/d0c/tutorial_bounding_rects_circles.html
+    private RotatedRect findRectangle(MatOfPoint thisContour) {
+
+        RotatedRect retVal = null;
+
+        MatOfPoint2f thisContour2f = new MatOfPoint2f();
+        MatOfPoint2f approxContour2f = new MatOfPoint2f();
+
+        thisContour.convertTo(thisContour2f, CvType.CV_32FC2);
+
+        double perimeter = Imgproc.arcLength(thisContour2f, true);
+        Imgproc.approxPolyDP(thisContour2f, approxContour2f, 0.04 * perimeter, true);
+
+        double height = approxContour2f.size().height;
+        double width = approxContour2f.size().width;
+        if ((approxContour2f.size().height >= 4) && (approxContour2f.size().height <= 6))
+            retVal = Imgproc.minAreaRect(approxContour2f);
+
+        return retVal;
+    }
 }
