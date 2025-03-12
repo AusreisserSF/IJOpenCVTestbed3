@@ -9,6 +9,7 @@ import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 import org.firstinspires.ftc.teamcode.auto.xml.RedAllianceSampleParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.opencv.core.*;
+import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
@@ -84,7 +85,6 @@ public class RedAllianceSampleRecognition {
         RobotLogCommon.d(TAG, "numUnfilteredAllianceContours " + filteredA.numUnfilteredContours);
         RobotLogCommon.d(TAG, "numFilteredAllianceContours " + filteredA.numFilteredContours);
 
-        //**TODO Classify the remaining samples based on the rectangle filtering
         List<RotatedRect> rectanglesFound = new ArrayList<>();
         RotatedRect oneRotatedRect;
         for (MatOfPoint oneContour : filteredA.filteredContours) {
@@ -93,11 +93,14 @@ public class RedAllianceSampleRecognition {
                 rectanglesFound.add(oneRotatedRect);
                 RobotLogCommon.d(TAG, "Found a rectangle with center x " + oneRotatedRect.center.x +
                         ", y " + oneRotatedRect.center.y);
+                RobotLogCommon.d(TAG, "Rectangle width " + oneRotatedRect.size.width +
+                        ", height " + oneRotatedRect.size.height +
+                        ", area " + (oneRotatedRect.size.width * oneRotatedRect.size.height));
             }
         }
 
         Point[] rectPoints = new Point[4];
-        Mat drawnRects = new Mat();
+        Mat drawnRects = pImageROI.clone();
         List<MatOfPoint> rectContours = new ArrayList<>();
         for (RotatedRect oneRect : rectanglesFound) {
             // Draw a rotated rectangle around a sample.
@@ -107,11 +110,11 @@ public class RedAllianceSampleRecognition {
             rectContours.clear();
         }
 
-        // Write a file with the irregular contours.
+        // Write a file with the rectangles.
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
             String fullFilename = pOutputFilenamePreamble + "_RRECT" + "_A" + ".png";
             DebugImageCommon.writeImage(fullFilename, drawnRects);
-            RobotLogCommon.vv(TAG, "Writing " + fullFilename);
+            RobotLogCommon.d(TAG, "Writing " + fullFilename);
         }
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
@@ -132,7 +135,8 @@ public class RedAllianceSampleRecognition {
 
         double height = approxContour2f.size().height;
         double width = approxContour2f.size().width;
-        if ((approxContour2f.size().height >= 4) && (approxContour2f.size().height <= 6))
+        RobotLogCommon.d(TAG, "Polygon height " + height + ", width " + width);
+        if ((height >= 4) && (height <= 6))
             retVal = Imgproc.minAreaRect(approxContour2f);
 
         return retVal;
