@@ -6,19 +6,14 @@ import org.firstinspires.ftc.ftcdevcommon.platform.intellij.RobotLogCommon;
 import org.firstinspires.ftc.ftcdevcommon.platform.intellij.TimeStamp;
 import org.firstinspires.ftc.teamcode.auto.DebugImageCommon;
 import org.firstinspires.ftc.teamcode.auto.RobotConstants;
-import org.firstinspires.ftc.teamcode.auto.xml.GoldCubeParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.RedAllianceSampleParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.opencv.core.*;
-import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
-
-import static org.firstinspires.ftc.teamcode.auto.vision.RedAllianceSampleRecognition.RecognitionPath.RED_CHANNEL_GRAYSCALE;
 
 public class RedAllianceSampleRecognition {
 
@@ -37,7 +32,6 @@ public class RedAllianceSampleRecognition {
     // FTC 2024-2025 IntoTheDeep.
     public RobotConstants.RecognitionResults recognizeRedAllianceSamples(ImageProvider pImageProvider,
                                                                          VisionParameters.ImageParameters pImageParameters,
-                                                                         RedAllianceSampleParameters pRedAllianceSampleParameters,
                                                                          RecognitionPath pRecognitionPath) throws InterruptedException {
 
         RobotLogCommon.d(TAG, "In RedAllianceSampleRecognition.recognizeRedAllianceSamples");
@@ -56,11 +50,10 @@ public class RedAllianceSampleRecognition {
         if (pRecognitionPath != RecognitionPath.RED_CHANNEL_GRAYSCALE)
             throw new AutonomousRobotException(TAG, "Unrecognized recognition path");
 
-        return redChannelPath(imageROI, outputFilenamePreamble, pRedAllianceSampleParameters);
+        return redChannelPath(imageROI, outputFilenamePreamble);
     }
 
-    private RobotConstants.RecognitionResults redChannelPath(Mat pImageROI, String pOutputFilenamePreamble,
-                                                             RedAllianceSampleParameters pRedAllianceSampleParameters) {
+    private RobotConstants.RecognitionResults redChannelPath(Mat pImageROI, String pOutputFilenamePreamble) {
 
         // Extract the red channel and then use it as grayscale.
         // The red channel will pick up both the red and yellow samples.
@@ -74,8 +67,8 @@ public class RedAllianceSampleRecognition {
         }
 
         Mat thresholded = ImageUtils.performThresholdOnGray(selectedChannel,
-                pRedAllianceSampleParameters.redGrayParameters.median_target,
-                pRedAllianceSampleParameters.redGrayParameters.threshold_low,
+                RedAllianceSampleParameters.redGrayParameters.median_target,
+                RedAllianceSampleParameters.redGrayParameters.threshold_low,
                 pOutputFilenamePreamble, "");
 
         //**TODO As part of filtering you'll have to get an idea of the proximity of the
@@ -84,7 +77,7 @@ public class RedAllianceSampleRecognition {
         // Sanitize the thresholded red alliance samples by eliminating contours
         // that are below the minimum area threshold.
         ImageUtils.FilteredContoursRecord filteredA = ImageUtils.filterContours(thresholded, pImageROI.rows(), pImageROI.cols(),
-                pRedAllianceSampleParameters.sampleCriteria.min_sample_area / 2.0,
+                RedAllianceSampleParameters.sampleCriteria.min_sample_area / 2.0,
                 pOutputFilenamePreamble, "_A");
 
         // Log statistics.
@@ -112,6 +105,13 @@ public class RedAllianceSampleRecognition {
             rectContours.add(new MatOfPoint(rectPoints)); // List is required
             Imgproc.drawContours(drawnRects, rectContours, 0, new Scalar(0, 255, 0), 2);
             rectContours.clear();
+        }
+
+        // Write a file with the irregular contours.
+        if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
+            String fullFilename = pOutputFilenamePreamble + "_RRECT" + "_A" + ".png";
+            DebugImageCommon.writeImage(fullFilename, drawnRects);
+            RobotLogCommon.vv(TAG, "Writing " + fullFilename);
         }
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
