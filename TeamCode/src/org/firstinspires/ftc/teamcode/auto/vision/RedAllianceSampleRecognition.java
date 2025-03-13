@@ -13,6 +13,7 @@ import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 public class RedAllianceSampleRecognition {
@@ -96,35 +97,66 @@ public class RedAllianceSampleRecognition {
         RobotLogCommon.d(TAG, "numUnfilteredAllianceContours " + filteredA.numUnfilteredContours);
         RobotLogCommon.d(TAG, "numFilteredAllianceContours " + filteredA.numFilteredContours);
 
+
+// You need at least one sample fully within the ROI so that you can calculate
+// px/in, else fail. Choose the sample closest to the center.
+// min_sample_area and max_sample_area are values for the default of 50px/in.
+// Adjust these according to the actual px/in in the current image. E.g. the
+// image LRF0308174115206318864025523.png works out to a px/in value of 74.28.
+
         List<RotatedRect> rectanglesFound = new ArrayList<>();
         RotatedRect oneRotatedRect;
         for (MatOfPoint oneContour : filteredA.filteredContours) {
             oneRotatedRect = findRectangle(oneContour);
             if (oneRotatedRect != null) {
                 rectanglesFound.add(oneRotatedRect);
-                RobotLogCommon.d(TAG, "Found a rectangle with center x " + oneRotatedRect.center.x +
-                        ", y " + oneRotatedRect.center.y);
-                RobotLogCommon.d(TAG, "Rectangle width " + oneRotatedRect.size.width +
-                        ", height " + oneRotatedRect.size.height +
-                        ", area " + (oneRotatedRect.size.width * oneRotatedRect.size.height));
-            }
+             }
+            // else
+            //**TODO Note: irregular shapes are those which do not pass the rectangle test.
+            // Log centroid, area
+            // Check against min area.
         }
 
-        //**TODO You're already iterating - why not do the filtering here?
-        //**TODO First sort rectanglesFound by distance to image center, ascending.
-        // Draw outlines around each rotated rectangle.
+        // First sort rectanglesFound by distance to image center, ascending.
+        int imageCenterX = pImageROI.cols() / 2;
+        int imageCenterY = pImageROI.rows() / 2;
+        rectanglesFound.sort(Comparator.comparingDouble(rr -> euclideanDistance(imageCenterX, imageCenterY, rr.center.x, rr.center.y)));
+
+        // Filter the rectangles on their proximity to the edges of
+        // the image and on their aspect ratio.
         Point[] rectPoints = new Point[4];
+        List<RotatedRect> filteredPass1 = new ArrayList<>();
+        for (RotatedRect oneFoundRect : rectanglesFound) {
+            oneFoundRect.points(rectPoints);
+
+            RobotLogCommon.d(TAG, "Found a rectangle with center x " + oneFoundRect.center.x +
+                        ", y " + oneFoundRect.center.y);
+            RobotLogCommon.d(TAG, "Rectangle width " + oneFoundRect.size.width +
+                        ", height " + oneFoundRect.size.height +
+                        ", area " + (oneFoundRect.size.width * oneFoundRect.size.height));
+            RobotLogCommon.d(TAG, "Rotated rect points 0 " + rectPoints[0] +
+                    ", 1 " + rectPoints[1] + ", 2 " + rectPoints[2] + ", 3 " + rectPoints[3]);
+
+            //**TODO If any of the four points has a negative x or y coordinate
+            // then part of the rectangle is out of the image area.
+
+            //**TODO Sometimes the boundary of a rotated rectangle is placed
+            // in close proximity to an edge of the image.
+            // Watch out for orientation and pickup zone boundaries.
+          }
+
+        /*
         Mat drawnRects = pImageROI.clone();
         List<MatOfPoint> rectContours = new ArrayList<>();
         for (RotatedRect oneRect : rectanglesFound) {
             oneRect.points(rectPoints);
-            RobotLogCommon.d(TAG, "Rotated rect points 0 " + rectPoints[0] +
-                    ", 1 " + rectPoints[1] + ", 2 " + rectPoints[2] + ", 3 " + rectPoints[3]);
 
+            // Draw outlines around each rotated rectangle.
             rectContours.add(new MatOfPoint(rectPoints)); // List is required
             Imgproc.drawContours(drawnRects, rectContours, 0, new Scalar(0, 255, 0), 2);
             rectContours.clear();
         }
+
 
         // Write a file with the rectangles.
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
@@ -132,6 +164,7 @@ public class RedAllianceSampleRecognition {
             DebugImageCommon.writeImage(fullFilename, drawnRects);
             RobotLogCommon.d(TAG, "Writing " + fullFilename);
         }
+        */
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
@@ -155,8 +188,14 @@ public class RedAllianceSampleRecognition {
         if ((height >= 4) && (height <= 6))
             retVal = Imgproc.minAreaRect(approxContour2f);
 
-        //**TODO else irregular ...
-
         return retVal;
+    }
+
+    // Because Android does not support java.awt.geom.Point2D;
+    // euclideanDistanceFromImageCenter = Point2D.distance(pImageCenter.x, pImageCenter.y, rotatedSample.center.x, rotatedSample.center.y);
+    private static double euclideanDistance(double x1, double y1, double x2, double y2) {
+        double deltaX = x2 - x1;
+        double deltaY = y2 - y1;
+        return Math.sqrt(deltaX * deltaX + deltaY * deltaY);
     }
 }
