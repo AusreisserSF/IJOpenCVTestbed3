@@ -4,7 +4,18 @@ package org.firstinspires.ftc.teamcode.auto.xml;
 public class RedAllianceSampleParameters {
     public static final VisionParameters.GrayParameters redGrayParameters =
             new VisionParameters.GrayParameters(150, 200);
-    private static final double max_distance_from_target_sample_center = 200.0;
+
+    //**TODO This value should be in inches and should be at least 1/2 the width of a sample,
+    // i.e. 1.75 in + the height of the center pickup zone .7 + a margin .25 = 2.7" - in
+    // case of a T configuration. This value could be computed from the CENTER pickup zone.
+    // <max_distance_from_target_sample_center>200</max_distance_from_target_sample_center>
+    // Do this in SampleRecognition.java. But for now just plug in a value here:
+    private static final double max_distance_from_target_sample_center = 2.7;
+
+    //!! Note that there is a dependency between the area limits
+    // and the default px/in value in SampleRecognition.java.
+    //private static final double DEFAULT_PX_PER_IN = DEFAULT_SAMPLE_WIDTH_PX / SAMPLE_WIDTH_IN;
+
     private static final double min_sample_area = 10000.0;
     private static final double max_sample_area = 21000.0;
     private static final double MIN_SAMPLE_ASPECT_RATIO = 1.6;

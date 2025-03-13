@@ -9,7 +9,6 @@ import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 import org.firstinspires.ftc.teamcode.auto.xml.RedAllianceSampleParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
 import org.opencv.core.*;
-import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
@@ -19,6 +18,19 @@ import java.util.List;
 public class RedAllianceSampleRecognition {
 
     private static final String TAG = RedAllianceSampleRecognition.class.getSimpleName();
+
+    // At the fixed shoulder distance of LIMELIGHT_LEVEL from
+    // the camera to a sample in the submersible at the center
+    // of the camera's field of view there are 175 pixels at
+    // an image resolution 640x480 for the 3.5" width of a
+    // sample. This translates to 50 px/in.
+    //!! Note that there is a dependency between the px/in value
+    // and the area limits in SampleParameters.xml.
+    private static final double SAMPLE_WIDTH_IN = 3.5;
+    private static final double DEFAULT_SAMPLE_WIDTH_PX = 175.0;
+    private static final double DEFAULT_PX_PER_IN = DEFAULT_SAMPLE_WIDTH_PX / SAMPLE_WIDTH_IN;
+// with comments that warn about the  Also comments about how
+// this number was derived:
 
     public enum RecognitionPath {
         RED_CHANNEL_GRAYSCALE
@@ -72,11 +84,10 @@ public class RedAllianceSampleRecognition {
                 RedAllianceSampleParameters.redGrayParameters.threshold_low,
                 pOutputFilenamePreamble, "");
 
-        //**TODO As part of filtering you'll have to get an idea of the proximity of the
-        // camera to the samples; this will affect the pixel counts.
-
         // Sanitize the thresholded red alliance samples by eliminating contours
         // that are below the minimum area threshold.
+        //**TODO Using 1/2 of the default min_sample_area is somewhat imprecise
+        // because this value is based on the default px/in.
         ImageUtils.FilteredContoursRecord filteredA = ImageUtils.filterContours(thresholded, pImageROI.rows(), pImageROI.cols(),
                 RedAllianceSampleParameters.sampleCriteria.min_sample_area / 2.0,
                 pOutputFilenamePreamble, "_A");
@@ -99,12 +110,17 @@ public class RedAllianceSampleRecognition {
             }
         }
 
+        //**TODO You're already iterating - why not do the filtering here?
+        //**TODO First sort rectanglesFound by distance to image center, ascending.
+        // Draw outlines around each rotated rectangle.
         Point[] rectPoints = new Point[4];
         Mat drawnRects = pImageROI.clone();
         List<MatOfPoint> rectContours = new ArrayList<>();
         for (RotatedRect oneRect : rectanglesFound) {
-            // Draw a rotated rectangle around a sample.
             oneRect.points(rectPoints);
+            RobotLogCommon.d(TAG, "Rotated rect points 0 " + rectPoints[0] +
+                    ", 1 " + rectPoints[1] + ", 2 " + rectPoints[2] + ", 3 " + rectPoints[3]);
+
             rectContours.add(new MatOfPoint(rectPoints)); // List is required
             Imgproc.drawContours(drawnRects, rectContours, 0, new Scalar(0, 255, 0), 2);
             rectContours.clear();
@@ -138,6 +154,8 @@ public class RedAllianceSampleRecognition {
         RobotLogCommon.d(TAG, "Polygon height " + height + ", width " + width);
         if ((height >= 4) && (height <= 6))
             retVal = Imgproc.minAreaRect(approxContour2f);
+
+        //**TODO else irregular ...
 
         return retVal;
     }
