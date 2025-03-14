@@ -20,19 +20,6 @@ public class RedAllianceSampleRecognition {
 
     private static final String TAG = RedAllianceSampleRecognition.class.getSimpleName();
 
-    // At the fixed shoulder distance of LIMELIGHT_LEVEL from
-    // the camera to a sample in the submersible at the center
-    // of the camera's field of view there are 175 pixels at
-    // an image resolution 640x480 for the 3.5" width of a
-    // sample. This translates to 50 px/in.
-    //!! Note that there is a dependency between the px/in value
-    // and the area limits in SampleParameters.xml.
-    private static final double SAMPLE_WIDTH_IN = 3.5;
-    private static final double DEFAULT_SAMPLE_WIDTH_PX = 175.0;
-    private static final double DEFAULT_PX_PER_IN = DEFAULT_SAMPLE_WIDTH_PX / SAMPLE_WIDTH_IN;
-// with comments that warn about the  Also comments about how
-// this number was derived:
-
     public enum RecognitionPath {
         RED_CHANNEL_GRAYSCALE
     }
@@ -87,8 +74,9 @@ public class RedAllianceSampleRecognition {
 
         // Sanitize the thresholded red alliance samples by eliminating contours
         // that are below the minimum area threshold.
-        //**TODO Using 1/2 of the default min_sample_area is somewhat imprecise
-        // because this value is based on the default px/in.
+        // Using 1/2 of the default min_sample_area is somewhat imprecise
+        // because this value is based on SampleParameters.DEFAULT_PX_PER_IN
+        // but we don't know the current value for px/in yet.
         ImageUtils.FilteredContoursRecord filteredA = ImageUtils.filterContours(thresholded, pImageROI.rows(), pImageROI.cols(),
                 RedAllianceSampleParameters.sampleCriteria.min_sample_area / 2.0,
                 pOutputFilenamePreamble, "_A");
@@ -97,27 +85,35 @@ public class RedAllianceSampleRecognition {
         RobotLogCommon.d(TAG, "numUnfilteredAllianceContours " + filteredA.numUnfilteredContours);
         RobotLogCommon.d(TAG, "numFilteredAllianceContours " + filteredA.numFilteredContours);
 
-
-// You need at least one sample fully within the ROI so that you can calculate
-// px/in, else fail. Choose the sample closest to the center.
-// min_sample_area and max_sample_area are values for the default of 50px/in.
-// Adjust these according to the actual px/in in the current image. E.g. the
-// image LRF0308174115206318864025523.png works out to a px/in value of 74.28.
-
+        // Collect complete rectangles and irregular shapes -
+        // contours that fail the rectangle test.
         List<RotatedRect> rectanglesFound = new ArrayList<>();
+        List<MatOfPoint> irregularShapes = new ArrayList<>();
         RotatedRect oneRotatedRect;
         for (MatOfPoint oneContour : filteredA.filteredContours) {
             oneRotatedRect = findRectangle(oneContour);
             if (oneRotatedRect != null) {
                 rectanglesFound.add(oneRotatedRect);
              }
-            // else
-            //**TODO Note: irregular shapes are those which do not pass the rectangle test.
-            // Log centroid, area
-            // Check against min area.
+             else { // irregular shape
+                 Point irregularShapeCentroid = ImageUtils.getContourCentroid(oneContour);
+                 RobotLogCommon.d(TAG, "Found an irregular shape with center x " +
+                         irregularShapeCentroid.x + ", y " + irregularShapeCentroid.y);
+                 RobotLogCommon.d(TAG, "Irregular shape area " + Imgproc.contourArea(oneContour));
+
+                //**TODO Check against min area.
+                irregularShapes.add(oneContour);
+            }
         }
 
-        // First sort rectanglesFound by distance to image center, ascending.
+        // Skip the remaining steps if we haven't found any rectangles
+        // at all.
+        if (rectanglesFound.isEmpty()) {
+
+        }
+
+        // First sort rectanglesFound by distance to image center, ascending,
+        // so that we always start with the one closest to the center.
         int imageCenterX = pImageROI.cols() / 2;
         int imageCenterY = pImageROI.rows() / 2;
         rectanglesFound.sort(Comparator.comparingDouble(rr -> euclideanDistance(imageCenterX, imageCenterY, rr.center.x, rr.center.y)));
@@ -143,7 +139,24 @@ public class RedAllianceSampleRecognition {
             //**TODO Sometimes the boundary of a rotated rectangle is placed
             // in close proximity to an edge of the image.
             // Watch out for orientation and pickup zone boundaries.
+
+            //**TODO Filter on aspect ratio ...
           }
+
+        //**TODO Now we have a collection of complete and in-bounds rectangles.
+
+        //**TODO Calculate px/in for the rectangle closest to the center
+        // of the image and scale to the default.
+
+        //**TODO Filter on area ...
+
+        // We need at least one sample fully within the ROI to calculate
+        // px/in, otherwise we'll have to fail recognition. Choose the
+        // sample closest to the center.
+        // min_sample_area and max_sample_area are values for the default of 50px/in.
+        // Adjust these according to the actual px/in in the current image. E.g. the
+        // image LRF0308174115206318864025523.png works out to a px/in value of 74.28.
+
 
         /*
         Mat drawnRects = pImageROI.clone();
