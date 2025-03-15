@@ -35,9 +35,9 @@ public class RedAllianceSampleParameters {
 
     public static final SampleCriteria sampleCriteria =
             new SampleCriteria(MIN_SAMPLE_WIDTH_PX, MAX_SAMPLE_WIDTH_PX,
-                    MAX_DISTANCE_FROM_TARGET_SAMPLE_CENTER,
                     MIN_SAMPLE_AREA, MAX_SAMPLE_AREA,
-                    MIN_SAMPLE_ASPECT_RATIO, MAX_SAMPLE_ASPECT_RATIO);
+                    MIN_SAMPLE_ASPECT_RATIO, MAX_SAMPLE_ASPECT_RATIO,
+                    MAX_DISTANCE_FROM_TARGET_SAMPLE_CENTER);
 
     public static class SampleCriteria {
         public final double min_sample_width_px;
@@ -53,7 +53,7 @@ public class RedAllianceSampleParameters {
                               double pMinSampleAspectRatio, double pMaxSampleAspectRatio,
                               double pMaxDistanceFromTargetSampleCenter) {
             min_sample_width_px = pMinSampleWidthPx;
-                    max_sample_width_px = pMaxSampleWidthPx;
+            max_sample_width_px = pMaxSampleWidthPx;
             min_sample_area = pMinSampleArea;
             max_sample_area = pMaxSampleArea;
             min_sample_aspect_ratio = pMinSampleAspectRatio;

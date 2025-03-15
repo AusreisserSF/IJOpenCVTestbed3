@@ -13,8 +13,6 @@ import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 
 public class RedAllianceSampleRecognition {
@@ -71,7 +69,7 @@ public class RedAllianceSampleRecognition {
         Mat thresholded = ImageUtils.performThresholdOnGray(selectedChannel,
                 RedAllianceSampleParameters.redGrayParameters.median_target,
                 RedAllianceSampleParameters.redGrayParameters.threshold_low,
-                pOutputFilenamePreamble, "");
+                pOutputFilenamePreamble, "_RED_THR");
 
         // Sanitize the thresholded red alliance samples by eliminating contours
         // that are below the minimum area threshold.
@@ -110,6 +108,8 @@ public class RedAllianceSampleRecognition {
             }
         }
 
+        RobotLogCommon.d(TAG, "Number of irregular shapes " + irregularShapes.size());
+
         // Skip the remaining steps if we haven't found any rectangles
         // at all.
         if (rectanglesFound.isEmpty()) {
@@ -134,9 +134,8 @@ public class RedAllianceSampleRecognition {
 
             int imageWidth = pImageROI.cols();
             int imageHeight = pImageROI.rows();
-            List<Point> rectPointsList = Arrays.asList(rectPoints);
             boolean outOfBoundsRectFound = false;
-            for (Point rectPoint : rectPointsList) {
+            for (Point rectPoint : rectPoints) {
                 // If any of the four points has a negative x or y coordinate
                 // then part of the rectangle is out of the image area.
                 if (rectPoint.x < 0 || rectPoint.y < 0) {
@@ -145,8 +144,8 @@ public class RedAllianceSampleRecognition {
                 }
 
                 // Sometimes the boundary of a rotated rectangle is placed
-                // in close proximity to an edge of the image. Check each vertex
-                // against 1/2 of the default px/in value.
+                // in close proximity to an edge of the image. Check each
+                // vertex against 1/2 of the default px/in value.
                 double proximityToEdge = RedAllianceSampleParameters.DEFAULT_PX_PER_IN / 2.0;
                 if (rectPoint.x < proximityToEdge || rectPoint.x > (imageWidth - proximityToEdge) ||
                         (rectPoint.y < proximityToEdge || rectPoint.y > (imageHeight - proximityToEdge))) {
@@ -156,7 +155,7 @@ public class RedAllianceSampleRecognition {
             }
 
             if (outOfBoundsRectFound) {
-                RobotLogCommon.d(TAG, "Rectangle has a vertex that is out of bounds for recognition");
+                RobotLogCommon.d(TAG, "Rectangle has a vertex that is out of bounds for recognition; skipping");
                 continue;
             }
 
@@ -167,7 +166,6 @@ public class RedAllianceSampleRecognition {
             if (aspectRatio < RedAllianceSampleParameters.sampleCriteria.min_sample_aspect_ratio ||
                     aspectRatio > RedAllianceSampleParameters.sampleCriteria.max_sample_aspect_ratio) {
                 RobotLogCommon.d(TAG, "Aspect ratio of " + aspectRatio + " is outside the bounds of a sample; skipping");
-                continue;
             } else
                 filteredPass1.add(oneFoundRect);
         }
@@ -186,11 +184,10 @@ public class RedAllianceSampleRecognition {
             // Get px/in
             double longSide = Math.max(oneFiltered1Rect.size.width, oneFiltered1Rect.size.height);
             double shortSide = Math.min(oneFiltered1Rect.size.width, oneFiltered1Rect.size.height);
-            double filtered1PxPerIn = longSide / RedAllianceSampleParameters.SAMPLE_WIDTH_IN;
 
             // Validate
-            if (filtered1PxPerIn < RedAllianceSampleParameters.MIN_SAMPLE_WIDTH_PX ||
-                    filtered1PxPerIn > RedAllianceSampleParameters.MAX_SAMPLE_WIDTH_PX) {
+            if (longSide < RedAllianceSampleParameters.MIN_SAMPLE_WIDTH_PX ||
+                    longSide > RedAllianceSampleParameters.MAX_SAMPLE_WIDTH_PX) {
                 RobotLogCommon.d(TAG, "Px/in of rectangle with center x " +
                         oneFiltered1Rect.center.x +
                         ", y " + oneFiltered1Rect.center.y + " is out of range");
@@ -198,6 +195,7 @@ public class RedAllianceSampleRecognition {
             }
 
             // Scale the long and short sides of the rectangle to the default px/in.
+            double filtered1PxPerIn = longSide / RedAllianceSampleParameters.SAMPLE_WIDTH_IN;
             double scaledLong = (longSide * RedAllianceSampleParameters.DEFAULT_PX_PER_IN) / filtered1PxPerIn;
             double scaledShort = (shortSide * RedAllianceSampleParameters.DEFAULT_PX_PER_IN) / filtered1PxPerIn;
             double scaledArea = scaledLong * scaledShort;
@@ -263,11 +261,4 @@ public class RedAllianceSampleRecognition {
         return retVal;
     }
 
-    // Because Android does not support java.awt.geom.Point2D;
-    // euclideanDistanceFromImageCenter = Point2D.distance(pImageCenter.x, pImageCenter.y, rotatedSample.center.x, rotatedSample.center.y);
-    private static double euclideanDistance(double x1, double y1, double x2, double y2) {
-        double deltaX = x2 - x1;
-        double deltaY = y2 - y1;
-        return Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    }
 }
