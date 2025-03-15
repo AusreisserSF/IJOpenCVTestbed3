@@ -102,7 +102,7 @@ public class RedAllianceSampleRecognition {
                         irregularShapeCentroid.x + ", y " + irregularShapeCentroid.y);
                 RobotLogCommon.d(TAG, "Irregular shape area " + irregularContourArea);
 
-                //**TODO Check against the default minimum sample area.
+                // Check against the default minimum sample area.
                 if (irregularContourArea < RedAllianceSampleParameters.sampleCriteria.min_sample_area / 2.0)
                     RobotLogCommon.d(TAG, "Irregular shape is under the minimum area; skipping");
                 else
@@ -116,12 +116,6 @@ public class RedAllianceSampleRecognition {
             RobotLogCommon.d(TAG, "No rectangles found in the image");
             return RobotConstants.RecognitionResults.RECOGNITION_UNSUCCESSFUL;
         }
-
-        // Sort rectanglesFound by distance to image center, ascending,
-        // so that we always start with the one closest to the center.
-        int imageCenterX = pImageROI.cols() / 2;
-        int imageCenterY = pImageROI.rows() / 2;
-        rectanglesFound.sort(Comparator.comparingDouble(rr -> euclideanDistance(imageCenterX, imageCenterY, rr.center.x, rr.center.y)));
 
         // Filter the rectangles on their proximity to the edges of
         // the image and on their aspect ratio.
@@ -186,45 +180,63 @@ public class RedAllianceSampleRecognition {
         }
 
         // Now we have a collection of complete and in-bounds rectangles.
-        //**TODO Need loop
+        // Loop through them and make sure they pass the area checks.
+        List<RotatedRect> filteredPass2 = new ArrayList<>();
+        for (RotatedRect oneFiltered1Rect : filteredPass1) {
+            // Get px/in
+            double longSide = Math.max(oneFiltered1Rect.size.width, oneFiltered1Rect.size.height);
+            double shortSide = Math.min(oneFiltered1Rect.size.width, oneFiltered1Rect.size.height);
+            double filtered1PxPerIn = longSide / RedAllianceSampleParameters.SAMPLE_WIDTH_IN;
 
-        // Calculate px/in for the rectangle closest to the center of the image
-        // and scale to the default.
-        RotatedRect closestToCenter = filteredPass1.get(0);
+            // Validate
+            if (filtered1PxPerIn < RedAllianceSampleParameters.MIN_SAMPLE_WIDTH_PX ||
+                    filtered1PxPerIn > RedAllianceSampleParameters.MAX_SAMPLE_WIDTH_PX) {
+                RobotLogCommon.d(TAG, "Px/in of rectangle with center x " +
+                        oneFiltered1Rect.center.x +
+                        ", y " + oneFiltered1Rect.center.y + " is out of range");
+                continue;
+            }
 
-        // Px/in
-        // Long side of the rotated rect * default px/in =
+            // Scale the long and short sides of the rectangle to the default px/in.
+            double scaledLong = (longSide * RedAllianceSampleParameters.DEFAULT_PX_PER_IN) / filtered1PxPerIn;
+            double scaledShort = (shortSide * RedAllianceSampleParameters.DEFAULT_PX_PER_IN) / filtered1PxPerIn;
+            double scaledArea = scaledLong * scaledShort;
 
-        //**TODO Filter on area ...
+            if (scaledArea < RedAllianceSampleParameters.sampleCriteria.min_sample_area) {
+                RobotLogCommon.d(TAG, "Area of rotated rectangle is below the minimum");
+                continue;
+            }
 
-        // We need at least one sample fully within the ROI to calculate
-        // px/in, otherwise we'll have to fail recognition. Choose the
-        // sample closest to the center.
-        // min_sample_area and max_sample_area are values for the default of 50px/in.
-        // Adjust these according to the actual px/in in the current image. E.g. the
-        // image LRF0308174115206318864025523.png works out to a px/in value of 74.28.
+            if (scaledArea > RedAllianceSampleParameters.sampleCriteria.max_sample_area) {
+                RobotLogCommon.d(TAG, "Area of rotated rectangle is above the maximum");
+                continue;
+            }
 
+            filteredPass2.add(oneFiltered1Rect);
+        }
 
-        /*
+        // We need at least one rectangle that passed all of the filters.
+        if (filteredPass2.isEmpty()) {
+            RobotLogCommon.d(TAG, "No rectangles passed the second filter");
+            return RobotConstants.RecognitionResults.RECOGNITION_UNSUCCESSFUL;
+        }
+
+        // Getting close - draw outlines around each filtered rectangle.
         Mat drawnRects = pImageROI.clone();
         List<MatOfPoint> rectContours = new ArrayList<>();
-        for (RotatedRect oneRect : rectanglesFound) {
-            oneRect.points(rectPoints);
-
-            // Draw outlines around each rotated rectangle.
+        for (RotatedRect drawOneRect : filteredPass2) {
+            drawOneRect.points(rectPoints);
             rectContours.add(new MatOfPoint(rectPoints)); // List is required
             Imgproc.drawContours(drawnRects, rectContours, 0, new Scalar(0, 255, 0), 2);
             rectContours.clear();
         }
 
-
         // Write a file with the rectangles.
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
-            String fullFilename = pOutputFilenamePreamble + "_RRECT" + "_A" + ".png";
+            String fullFilename = pOutputFilenamePreamble + "_VRECT" + "_A" + ".png";
             DebugImageCommon.writeImage(fullFilename, drawnRects);
             RobotLogCommon.d(TAG, "Writing " + fullFilename);
         }
-        */
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
     }
