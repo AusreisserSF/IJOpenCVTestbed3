@@ -11,11 +11,11 @@ public class RedAllianceSampleParameters {
     // an image resolution 640x480 for the 3.5" width of a
     // sample. This translates to 50 px/in.
 
-    private static final double SAMPLE_WIDTH_IN = 3.5;
-    private static final double MIN_SAMPLE_WIDTH_PX = 170.0;
-    private static final double MAX_SAMPLE_WIDTH_PX = 270.0;
-    private static final double DEFAULT_SAMPLE_WIDTH_PX = 175.0;
-    private static final double DEFAULT_PX_PER_IN = DEFAULT_SAMPLE_WIDTH_PX / SAMPLE_WIDTH_IN;
+    public static final double SAMPLE_WIDTH_IN = 3.5;
+    public static final double MIN_SAMPLE_WIDTH_PX = 170.0;
+    public static final double MAX_SAMPLE_WIDTH_PX = 270.0;
+    public static final double DEFAULT_SAMPLE_WIDTH_PX = 175.0;
+    public static final double DEFAULT_PX_PER_IN = DEFAULT_SAMPLE_WIDTH_PX / SAMPLE_WIDTH_IN;
 
     //!! Note that there is a dependency between the area limits
     // and the default DEFAULT_SAMPLE_WIDTH_PX value above.

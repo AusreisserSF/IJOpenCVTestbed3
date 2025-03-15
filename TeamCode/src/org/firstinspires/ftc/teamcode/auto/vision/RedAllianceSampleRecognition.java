@@ -13,6 +13,7 @@ import org.opencv.imgproc.Imgproc;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -85,8 +86,8 @@ public class RedAllianceSampleRecognition {
         RobotLogCommon.d(TAG, "numUnfilteredAllianceContours " + filteredA.numUnfilteredContours);
         RobotLogCommon.d(TAG, "numFilteredAllianceContours " + filteredA.numFilteredContours);
 
-        // Collect complete rectangles and irregular shapes -
-        // contours that fail the rectangle test.
+        // Collect complete rectangles and irregular shapes
+        // i.e. those contours that fail the rectangle test.
         List<RotatedRect> rectanglesFound = new ArrayList<>();
         List<MatOfPoint> irregularShapes = new ArrayList<>();
         RotatedRect oneRotatedRect;
@@ -94,25 +95,29 @@ public class RedAllianceSampleRecognition {
             oneRotatedRect = findRectangle(oneContour);
             if (oneRotatedRect != null) {
                 rectanglesFound.add(oneRotatedRect);
-             }
-             else { // irregular shape
-                 Point irregularShapeCentroid = ImageUtils.getContourCentroid(oneContour);
-                 RobotLogCommon.d(TAG, "Found an irregular shape with center x " +
-                         irregularShapeCentroid.x + ", y " + irregularShapeCentroid.y);
-                 RobotLogCommon.d(TAG, "Irregular shape area " + Imgproc.contourArea(oneContour));
+            } else { // irregular shape
+                Point irregularShapeCentroid = ImageUtils.getContourCentroid(oneContour);
+                double irregularContourArea = Imgproc.contourArea(oneContour);
+                RobotLogCommon.d(TAG, "Found an irregular shape with center x " +
+                        irregularShapeCentroid.x + ", y " + irregularShapeCentroid.y);
+                RobotLogCommon.d(TAG, "Irregular shape area " + irregularContourArea);
 
-                //**TODO Check against min area.
-                irregularShapes.add(oneContour);
+                //**TODO Check against the default minimum sample area.
+                if (irregularContourArea < RedAllianceSampleParameters.sampleCriteria.min_sample_area / 2.0)
+                    RobotLogCommon.d(TAG, "Irregular shape is under the minimum area; skipping");
+                else
+                    irregularShapes.add(oneContour);
             }
         }
 
         // Skip the remaining steps if we haven't found any rectangles
         // at all.
         if (rectanglesFound.isEmpty()) {
-
+            RobotLogCommon.d(TAG, "No rectangles found in the image");
+            return RobotConstants.RecognitionResults.RECOGNITION_UNSUCCESSFUL;
         }
 
-        // First sort rectanglesFound by distance to image center, ascending,
+        // Sort rectanglesFound by distance to image center, ascending,
         // so that we always start with the one closest to the center.
         int imageCenterX = pImageROI.cols() / 2;
         int imageCenterY = pImageROI.rows() / 2;
@@ -126,27 +131,69 @@ public class RedAllianceSampleRecognition {
             oneFoundRect.points(rectPoints);
 
             RobotLogCommon.d(TAG, "Found a rectangle with center x " + oneFoundRect.center.x +
-                        ", y " + oneFoundRect.center.y);
+                    ", y " + oneFoundRect.center.y);
             RobotLogCommon.d(TAG, "Rectangle width " + oneFoundRect.size.width +
-                        ", height " + oneFoundRect.size.height +
-                        ", area " + (oneFoundRect.size.width * oneFoundRect.size.height));
+                    ", height " + oneFoundRect.size.height +
+                    ", area " + (oneFoundRect.size.width * oneFoundRect.size.height));
             RobotLogCommon.d(TAG, "Rotated rect points 0 " + rectPoints[0] +
                     ", 1 " + rectPoints[1] + ", 2 " + rectPoints[2] + ", 3 " + rectPoints[3]);
 
-            //**TODO If any of the four points has a negative x or y coordinate
-            // then part of the rectangle is out of the image area.
+            int imageWidth = pImageROI.cols();
+            int imageHeight = pImageROI.rows();
+            List<Point> rectPointsList = Arrays.asList(rectPoints);
+            boolean outOfBoundsRectFound = false;
+            for (Point rectPoint : rectPointsList) {
+                // If any of the four points has a negative x or y coordinate
+                // then part of the rectangle is out of the image area.
+                if (rectPoint.x < 0 || rectPoint.y < 0) {
+                    outOfBoundsRectFound = true;
+                    break;
+                }
 
-            //**TODO Sometimes the boundary of a rotated rectangle is placed
-            // in close proximity to an edge of the image.
-            // Watch out for orientation and pickup zone boundaries.
+                // Sometimes the boundary of a rotated rectangle is placed
+                // in close proximity to an edge of the image. Check each vertex
+                // against 1/2 of the default px/in value.
+                double proximityToEdge = RedAllianceSampleParameters.DEFAULT_PX_PER_IN / 2.0;
+                if (rectPoint.x < proximityToEdge || rectPoint.x > (imageWidth - proximityToEdge) ||
+                        (rectPoint.y < proximityToEdge || rectPoint.y > (imageHeight - proximityToEdge))) {
+                    outOfBoundsRectFound = true;
+                    break;
+                }
+            }
 
-            //**TODO Filter on aspect ratio ...
-          }
+            if (outOfBoundsRectFound) {
+                RobotLogCommon.d(TAG, "Rectangle has a vertex that is out of bounds for recognition");
+                continue;
+            }
 
-        //**TODO Now we have a collection of complete and in-bounds rectangles.
+            // Filter on aspect ratio of the long side of a sample / short side
+            double longSide = Math.max(oneFoundRect.size.width, oneFoundRect.size.height);
+            double shortSide = Math.min(oneFoundRect.size.width, oneFoundRect.size.height);
+            double aspectRatio = longSide / shortSide;
+            if (aspectRatio < RedAllianceSampleParameters.sampleCriteria.min_sample_aspect_ratio ||
+                    aspectRatio > RedAllianceSampleParameters.sampleCriteria.max_sample_aspect_ratio) {
+                RobotLogCommon.d(TAG, "Aspect ratio of " + aspectRatio + " is outside the bounds of a sample; skipping");
+                continue;
+            } else
+                filteredPass1.add(oneFoundRect);
+        }
 
-        //**TODO Calculate px/in for the rectangle closest to the center
-        // of the image and scale to the default.
+        // Skip the remaining steps if no rectangles have passed
+        // the first filter.
+        if (filteredPass1.isEmpty()) {
+            RobotLogCommon.d(TAG, "No rectangles passed the first filter");
+            return RobotConstants.RecognitionResults.RECOGNITION_UNSUCCESSFUL;
+        }
+
+        // Now we have a collection of complete and in-bounds rectangles.
+        //**TODO Need loop
+
+        // Calculate px/in for the rectangle closest to the center of the image
+        // and scale to the default.
+        RotatedRect closestToCenter = filteredPass1.get(0);
+
+        // Px/in
+        // Long side of the rotated rect * default px/in =
 
         //**TODO Filter on area ...
 
