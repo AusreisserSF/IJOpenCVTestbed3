@@ -8,9 +8,7 @@ import org.firstinspires.ftc.teamcode.auto.DebugImageCommon;
 import org.firstinspires.ftc.teamcode.auto.RobotConstants;
 import org.firstinspires.ftc.teamcode.auto.xml.SampleContoursParameters;
 import org.firstinspires.ftc.teamcode.auto.xml.VisionParameters;
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
-import org.opencv.core.MatOfPoint;
+import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
@@ -90,8 +88,15 @@ public class SampleContoursRecognition {
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
             Mat contoursOut = pImageROI.clone();
             ShapeDrawing.drawShapeContours(contours, contoursOut);
-            Imgcodecs.imwrite(pOutputFilenamePreamble + "CON.png", contoursOut);
-            RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "CON.png");
+
+            //**TODO color path also Draw the centroid of each contour.
+            for (int i = 0; i < contours.size(); i++) {
+                Point centroid = ImageUtils.getContourCentroid(contours.get(i));
+                Imgproc.circle(contoursOut, centroid, 10, new Scalar(0, 255, 0), 2);
+            }
+
+            Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON.png", contoursOut);
+            RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON.png");
         }
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;
@@ -110,8 +115,8 @@ public class SampleContoursRecognition {
         if (RobotLogCommon.isLoggable(RobotLogCommon.CommonLogLevel.d)) {
             Mat contoursOut = pImageROI.clone();
             ShapeDrawing.drawShapeContours(contours, contoursOut);
-            Imgcodecs.imwrite(pOutputFilenamePreamble + "CON.png", contoursOut);
-            RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "CON.png");
+            Imgcodecs.imwrite(pOutputFilenamePreamble + "_CON.png", contoursOut);
+            RobotLogCommon.d(TAG, "Writing " + pOutputFilenamePreamble + "_CON.png");
         }
 
         return RobotConstants.RecognitionResults.RECOGNITION_SUCCESSFUL;

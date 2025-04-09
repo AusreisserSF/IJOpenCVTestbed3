@@ -41,10 +41,10 @@ public class SampleContoursParametersXML {
             XPath xpath = xpathFactory.newXPath();
 
             // Point to the first node.
-            XPathExpression expr = xpath.compile("//sample_parameters");
+            XPathExpression expr = xpath.compile("//sample_contours_parameters");
             sample_parameters_node = (Node) expr.evaluate(document, XPathConstants.NODE);
             if (sample_parameters_node == null)
-                throw new AutonomousRobotException(TAG, "Element '//sample_parameters' not found");
+                throw new AutonomousRobotException(TAG, "Element '//sample_contours_parameters' not found");
 
         } catch (ParserConfigurationException pex) {
             throw new AutonomousRobotException(TAG, "DOM parser Exception " + pex.getMessage());
