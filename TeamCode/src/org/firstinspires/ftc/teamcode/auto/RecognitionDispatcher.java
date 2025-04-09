@@ -164,36 +164,40 @@ public class RecognitionDispatcher extends Application {
                         "Test gold cube recognition");
             }
 
-            case "FIND_RECTANGLES" -> {
-                // Get the <image_parameters> for the rectangles from the RobotAction XML file.
-                VisionParameters.ImageParameters rectangleImageParameters =
+            case "SAMPLE_CONTOURS" -> {
+                // Read the parameters for sample contours recognition from the xml file.
+                SampleContoursParametersXML sampleContoursParametersXML = new SampleContoursParametersXML(fullTestCaseDir);
+                SampleContoursParameters sampleContoursParameters = sampleContoursParametersXML.getSampleContoursParameters();
+
+                // Get the <image_parameters> for the samples from the RobotAction XML file.
+                VisionParameters.ImageParameters sampleImageParameters =
                         robotActionXML.getImageParametersFromXPath(actionElement, "image_parameters");
 
                 // Make sure that this tester is reading the image from a file.
-                if (!(rectangleImageParameters.image_source.endsWith(".png") ||
-                        rectangleImageParameters.image_source.endsWith(".jpg")))
+                if (!(sampleImageParameters.image_source.endsWith(".png") ||
+                        sampleImageParameters.image_source.endsWith(".jpg")))
                     throw new AutonomousRobotException(TAG, "Invalid image file name");
 
-                imageFilename = rectangleImageParameters.image_source;
-                ImageProvider fileImage = new FileImage(fullTestCaseDir + rectangleImageParameters.image_source);
+                imageFilename = sampleImageParameters.image_source;
+                ImageProvider fileImage = new FileImage(fullTestCaseDir + sampleImageParameters.image_source);
 
                 // Perform image recognition.
                 // Get the recognition path from the XML file.
                 String recognitionPathString = actionXPath.getRequiredText("rectangle_recognition/recognition_path");
-                RedAllianceSampleRecognition.RecognitionPath rectangleRecognitionPath =
-                        RedAllianceSampleRecognition.RecognitionPath.valueOf(recognitionPathString.toUpperCase());
+                SampleContoursRecognition.SampleContoursRecognitionPath sampleContoursRecognitionPath =
+                        SampleContoursRecognition.SampleContoursRecognitionPath.valueOf(recognitionPathString.toUpperCase());
 
-                RobotLogCommon.d(TAG, "Recognition path " + rectangleRecognitionPath);
+                RobotLogCommon.d(TAG, "Recognition path " + sampleContoursRecognitionPath);
 
                 // Perform image recognition.
-                // The parameters for rectangles are hard coded.
-                RedAllianceSampleRecognition rectangleRecognition = new RedAllianceSampleRecognition(fullTestCaseDir);
+                SampleContoursRecognition sampleRecognition = new SampleContoursRecognition(fullTestCaseDir, alliance);
                 RobotConstants.RecognitionResults rectangleReturn =
-                        rectangleRecognition.recognizeRedAllianceSamples(fileImage, rectangleImageParameters, rectangleRecognitionPath);
+                        sampleRecognition.recognizeSampleContours(fileImage, sampleImageParameters,
+                                sampleContoursParameters, sampleContoursRecognitionPath);
 
-                displayResults(fullTestCaseDir + rectangleImageParameters.image_source,
+                displayResults(fullTestCaseDir + sampleImageParameters.image_source,
                         buildResultsOnlyDisplayText(imageFilename, rectangleReturn),
-                        "Test rectangle recognition");
+                        "Test sample rectangle recognition");
             }
 
             // Proof-of-concept test with the L*a*b* color space.
